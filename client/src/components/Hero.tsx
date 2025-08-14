@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { HeroContent, Stats } from "@/types";
+import type { HeroContent, Stats } from "@shared/schema";
 
 export default function Hero() {
   const { data: heroContent } = useQuery<HeroContent>({

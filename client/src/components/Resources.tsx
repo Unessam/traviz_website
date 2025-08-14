@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, BarChart3, Book, Download } from "lucide-react";
-import type { Resource } from "@/types";
+import type { Resource } from "@shared/schema";
 
 const resourceIcons = {
   pdf: FileText,
