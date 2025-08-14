@@ -23,10 +23,9 @@ export default function Hero() {
   const hero = heroContent || defaultHero;
   
   const defaultStats = {
-    hoursSaved: 1000,
-    clientsServed: 50,
-    roiIncrease: 300,
-    projectsCompleted: 100,
+    yearsExperience: 7,
+    hoursSavedAnnually: 1000,
+    industryProjectsCount: "Multiple",
   };
 
   const currentStats = stats || defaultStats;
@@ -66,7 +65,7 @@ export default function Hero() {
             </div>
             <div className="animate-fade-in">
               <img 
-                src={hero.heroImageUrl || "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
+                src={(hero as any).heroImageUrl || "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
                 alt="AI technology business automation" 
                 className="rounded-2xl shadow-2xl w-full h-auto"
               />
@@ -93,7 +92,7 @@ export default function Hero() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-logo-purple mb-4" data-testid="stat-years-experience">
-                7+
+                {currentStats.yearsExperience}+
               </div>
               <div className="text-charcoal font-medium leading-relaxed">
                 Years delivering AI solutions across industries
@@ -101,7 +100,7 @@ export default function Hero() {
             </div>
             <div>
               <div className="text-4xl font-bold text-electric-teal mb-4" data-testid="stat-hours-saved">
-                1000+
+                {currentStats.hoursSavedAnnually}+
               </div>
               <div className="text-charcoal font-medium leading-relaxed">
                 Hours saved annually for clients through automation
@@ -109,7 +108,7 @@ export default function Hero() {
             </div>
             <div>
               <div className="text-4xl font-bold text-logo-purple mb-4" data-testid="stat-industry-projects">
-                ∞
+                {currentStats.industryProjectsCount === "Multiple" ? "∞" : currentStats.industryProjectsCount}
               </div>
               <div className="text-charcoal font-medium leading-relaxed">
                 Projects in healthcare, aviation, gaming, finance, and more
