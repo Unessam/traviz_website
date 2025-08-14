@@ -41,7 +41,7 @@ export default function Hero() {
             <div className="animate-slide-up">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
                 <span className="gradient-text">{hero.title}</span><br />
-                <span className="text-charcoal">{hero.subtitle}</span>
+                <span className="text-charcoal text-2xl sm:text-3xl lg:text-4xl">{hero.subtitle}</span>
               </h1>
               <p className="text-xl text-muted-blue mb-8 leading-relaxed">
                 {hero.description}
@@ -90,30 +90,30 @@ export default function Hero() {
       {/* Key Stats */}
       <div className="bg-cool-gray py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-4xl font-bold text-logo-purple mb-2" data-testid="stat-hours-saved">
-                {currentStats.hoursSaved}+
+              <div className="text-4xl font-bold text-logo-purple mb-4" data-testid="stat-years-experience">
+                7+
               </div>
-              <div className="text-charcoal font-medium">Hours Saved Annually</div>
+              <div className="text-charcoal font-medium leading-relaxed">
+                Years delivering AI solutions across industries
+              </div>
             </div>
             <div>
-              <div className="text-4xl font-bold text-electric-teal mb-2" data-testid="stat-clients-served">
-                {currentStats.clientsServed}+
+              <div className="text-4xl font-bold text-electric-teal mb-4" data-testid="stat-hours-saved">
+                1000+
               </div>
-              <div className="text-charcoal font-medium">Clients Served</div>
+              <div className="text-charcoal font-medium leading-relaxed">
+                Hours saved annually for clients through automation
+              </div>
             </div>
             <div>
-              <div className="text-4xl font-bold text-logo-purple mb-2" data-testid="stat-roi-increase">
-                {currentStats.roiIncrease}%
+              <div className="text-4xl font-bold text-logo-purple mb-4" data-testid="stat-industry-projects">
+                ∞
               </div>
-              <div className="text-charcoal font-medium">Average ROI Increase</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-electric-teal mb-2" data-testid="stat-projects-completed">
-                {currentStats.projectsCompleted}+
+              <div className="text-charcoal font-medium leading-relaxed">
+                Projects in healthcare, aviation, gaming, finance, and more
               </div>
-              <div className="text-charcoal font-medium">Projects Completed</div>
             </div>
           </div>
         </div>
