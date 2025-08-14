@@ -1,0 +1,108 @@
+Traviz Website Structure
+1. Home
+
+Hero section: Clear value proposition (“AI Automation for Real Business Impact”) + call-to-action.
+
+Quick intro: Who you are & what you do in 2–3 sentences.
+
+Featured services: Short teaser boxes linking to service pages.
+
+Featured product(s): One-liner + “Learn more” link.
+
+Key stats / impact: e.g., “1000+ hours saved for clients annually.”
+
+Client logos or testimonials snippet.
+
+Primary CTA: “Book a Consultation” / “Let’s Talk.”
+
+2. About Us
+
+Our Story: Short narrative of why Traviz exists.
+
+Our Mission & Philosophy.
+
+Core Values (with brief explanations).
+
+Meet the Founder: Bio, photo, key credentials.
+
+Our Approach: How you work with clients (e.g., Discovery → Design → Delivery → Support).
+
+3. Services
+
+Break down by core offerings, each with its own subpage:
+
+AI Strategy & Consultation
+
+Automation & AI Integration
+
+Machine Learning & Engineering
+
+Data Engineering & Science
+
+AI Product Development
+
+Each service page should include:
+
+What it is (simple terms)
+
+What you deliver
+
+Example use cases
+
+Client success snippet
+
+4. Products
+
+Intro section: “In addition to consultancy, Traviz develops AI-powered products…”
+
+Product Spotlight:
+
+Agentiq AI CRM: Short pitch, key benefits, link to dedicated site.
+
+Future products (optional “Coming Soon” teaser).
+
+5. Case Studies / Success Stories
+
+One page with grid/list of stories (like your “Dental Receptionist AI Agent” example).
+
+Each case study should include:
+
+Client challenge
+
+Our solution
+
+The result (measurable impact)
+
+Testimonial quote if available.
+
+6. Testimonials
+
+Pull from different industries to show versatility.
+
+Include client names & companies (with permission).
+
+7. Insights / Blog
+
+Educational articles on AI trends, automation strategies, lessons from projects.
+
+Can double as SEO growth channel.
+
+8. Contact
+
+Short message inviting contact.
+
+Form: Name, Email, Message.
+
+Optional: booking link for consultations.
+
+Social media links.
+
+9. (Optional) Resources
+
+Free guides, checklists, whitepapers.
+
+Builds credibility & lead capture.
+
+Navigation Tip:
+The top menu could be:
+Home | Services | Products | Case Studies | Insights | About | Contact
