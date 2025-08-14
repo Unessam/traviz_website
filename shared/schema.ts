@@ -145,6 +145,10 @@ export const contactSubmissions = pgTable("contact_submissions", {
 
 export const stats = pgTable("stats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hoursSaved: integer("hours_saved"),
+  clientsServed: integer("clients_served"),
+  roiIncrease: integer("roi_increase"),
+  projectsCompleted: integer("projects_completed"),
   yearsExperience: integer("years_experience").default(7),
   hoursSavedAnnually: integer("hours_saved_annually").default(1000),
   industryProjectsCount: varchar("industry_projects_count").default("Multiple"),
