@@ -1,0 +1,125 @@
+Services
+AI Strategy & Consultation
+
+Turn AI from a buzzword into a measurable business asset.
+We identify high-impact AI opportunities, align them with your strategic goals, and deliver a clear roadmap to implementation.
+
+What We Deliver:
+
+AI strategy roadmap tailored to your business objectives.
+
+ROI-focused recommendations backed by data.
+
+Feasibility studies and proof-of-concept plans.
+
+Executive-ready strategy documents for stakeholder buy-in.
+
+Example Use Cases:
+
+Defining an AI adoption strategy for a healthcare network.
+
+Identifying automation opportunities in a global logistics company.
+
+Evaluating AI ROI for a SaaS startup before product launch.
+
+SEO Keywords: AI strategy consulting, AI adoption roadmap, AI feasibility study, AI for business growth.
+
+Automation & AI Integration
+
+Integrate intelligent automation into your workflows to save time, reduce costs, and eliminate human error.
+We build and integrate AI-powered agents and automation tools directly into your operations.
+
+What We Deliver:
+
+Custom AI agent development (chat, voice, or multi-modal).
+
+Seamless integration with CRMs, ERPs, and communication platforms.
+
+Automation of repetitive workflows and back-office tasks.
+
+Ongoing performance monitoring and optimization.
+
+Example Use Cases:
+
+AI receptionist handling patient bookings in a dental practice.
+
+Generative AI system summarizing sales calls and generating proposals.
+
+Automating customer support ticket triage for an e-commerce brand.
+
+SEO Keywords: AI workflow automation, AI integration services, AI chatbot development, business process automation with AI.
+
+Machine Learning & Engineering
+
+From predictive analytics to anomaly detection, we build custom ML models that solve your most complex challenges.
+Our solutions go beyond experimentation — we design for production.
+
+What We Deliver:
+
+End-to-end ML model development and deployment.
+
+MLOps pipelines for continuous delivery and improvement.
+
+Real-time prediction and decision-support systems.
+
+Explainable AI for transparency and compliance.
+
+Example Use Cases:
+
+Predicting churn in gaming and recommending personalized bonuses.
+
+Fraud detection models for online financial transactions.
+
+Predictive maintenance for heavy machinery.
+
+SEO Keywords: machine learning engineering, predictive analytics, anomaly detection AI, MLOps services.
+
+Data Engineering & Science
+
+Transform raw data into actionable intelligence.
+We design scalable data architectures and deliver insights that drive smarter decisions.
+
+What We Deliver:
+
+Scalable data infrastructure and cloud architecture.
+
+Automated data ingestion, cleaning, and transformation pipelines.
+
+Advanced analytics and interactive dashboards.
+
+Predictive and prescriptive modeling.
+
+Example Use Cases:
+
+Building a cloud-based data warehouse for an airline.
+
+Creating real-time dashboards for a retail chain.
+
+Developing forecasting models for supply chain optimization.
+
+SEO Keywords: data engineering consulting, data science services, AI data analytics, predictive modeling.
+
+AI Product Development
+
+Turn prototypes into market-ready AI products.
+We provide the technical leadership and engineering expertise to take your AI product from idea to launch.
+
+What We Deliver:
+
+End-to-end product design, development, and deployment.
+
+Integration of AI/ML capabilities into product features.
+
+Scalability planning and infrastructure setup.
+
+Continuous product iteration and performance optimization.
+
+Example Use Cases:
+
+Developing an AI-powered CRM from concept to live product.
+
+Building a recommendation engine for an e-learning platform.
+
+Creating an AI-based analytics tool for the healthcare industry.
+
+SEO Keywords: AI product development services, AI software engineering, AI prototype to product, AI startup technical leadership.
