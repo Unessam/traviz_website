@@ -38,7 +38,7 @@ import type {
   Resource,
   HeroContent,
   AboutContent 
-} from "@/types";
+} from "@shared/schema";
 
 // Form schemas
 const serviceSchema = z.object({
@@ -196,10 +196,15 @@ export default function ContentEditor() {
     },
   });
 
-  // Update mutation
+  // Update mutation - handles both regular content and special cases like hero
   const updateMutation = useMutation({
-    mutationFn: async ({ type, id, data }: { type: string; id: string; data: any }) => {
-      await apiRequest("PUT", `/api/admin/${type}/${id}`, data);
+    mutationFn: async ({ type, id, data }: { type: string; id?: string; data: any }) => {
+      // Special case for hero and about content (no ID required)
+      if (type === 'hero' || type === 'about') {
+        await apiRequest("PUT", `/api/admin/${type}`, data);
+      } else if (id) {
+        await apiRequest("PUT", `/api/admin/${type}/${id}`, data);
+      }
     },
     onSuccess: (_, { type }) => {
       toast({
@@ -311,7 +316,10 @@ export default function ContentEditor() {
     });
 
     const onSubmit = (data: any) => {
-      if (editingItem) {
+      // Special cases for hero and about content - always update, never create
+      if (type === 'hero' || type === 'about') {
+        updateMutation.mutate({ type, data });
+      } else if (editingItem) {
         updateMutation.mutate({ type, id: editingItem.id, data });
       } else {
         createMutation.mutate({ type, data });

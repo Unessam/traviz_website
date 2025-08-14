@@ -9,7 +9,7 @@ import {
   Rocket,
   ArrowRight
 } from "lucide-react";
-import type { Service } from "@/types";
+import type { Service } from "@shared/schema";
 
 const iconMap = {
   lightbulb: Lightbulb,

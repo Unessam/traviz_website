@@ -156,6 +156,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin CRUD routes for hero content
+  app.post('/api/admin/hero', isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertHeroContentSchema.parse(req.body);
+      const heroContent = await storage.updateHeroContent(validatedData);
+      res.json(heroContent);
+    } catch (error) {
+      console.error("Error updating hero content:", error);
+      res.status(400).json({ message: "Invalid data" });
+    }
+  });
+
   app.put('/api/admin/hero', isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertHeroContentSchema.parse(req.body);
