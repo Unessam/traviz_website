@@ -118,7 +118,6 @@ export default function About() {
                   <div className="w-16 h-16 bg-logo-purple rounded-full flex items-center justify-center mx-auto mb-6">
                     <IconComponent className="w-8 h-8 text-white" />
                   </div>
-                  <h4 className="text-xl font-semibold text-charcoal mb-4 capitalize">{key}</h4>
                   <p className="text-muted-blue leading-relaxed" data-testid={`value-${key}`}>
                     {value}
                   </p>
