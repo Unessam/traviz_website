@@ -106,10 +106,9 @@ const resourceSchema = z.object({
 });
 
 const statsSchema = z.object({
-  hoursSaved: z.number().min(0),
-  clientsServed: z.number().min(0),
-  roiIncrease: z.number().min(0),
-  projectsCompleted: z.number().min(0),
+  yearsExperience: z.number().min(0),
+  hoursSavedAnnually: z.number().min(0),
+  industryProjectsCount: z.string().min(1),
 });
 
 const heroSchema = z.object({
@@ -1067,10 +1066,9 @@ export default function ContentEditor() {
           </CardHeader>
           <CardContent>
             {renderForm(statsSchema, 'stats', {
-              hoursSaved: stats?.hoursSaved || 1000,
-              clientsServed: stats?.clientsServed || 50,
-              roiIncrease: stats?.roiIncrease || 300,
-              projectsCompleted: stats?.projectsCompleted || 100,
+              yearsExperience: stats?.yearsExperience || 7,
+              hoursSavedAnnually: stats?.hoursSavedAnnually || 1000,
+              industryProjectsCount: stats?.industryProjectsCount || "Multiple",
             })}
           </CardContent>
         </Card>
@@ -1127,7 +1125,7 @@ export default function ContentEditor() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
                     <Calendar className="w-3 h-3 inline mr-1" />
-                    {new Date(submission.createdAt).toLocaleDateString()}
+                    {submission.createdAt ? new Date(submission.createdAt).toLocaleDateString() : 'No date'}
                   </p>
                 </div>
               ))
