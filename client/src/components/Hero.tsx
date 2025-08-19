@@ -49,6 +49,7 @@ export default function Hero() {
                 <Button 
                   size="lg" 
                   className="bg-logo-purple text-white hover:bg-opacity-90 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl"
+                  onClick={() => window.open('https://calendly.com/traviz/consultation', '_blank')}
                   data-testid="button-primary-cta"
                 >
                   {hero.primaryButtonText}
