@@ -57,6 +57,12 @@ export default function Hero() {
                   variant="outline" 
                   size="lg"
                   className="border-2 border-electric-teal text-electric-teal hover:bg-electric-teal hover:text-white transition-all duration-300 font-semibold text-lg"
+                  onClick={() => {
+                    const servicesSection = document.getElementById('services');
+                    if (servicesSection) {
+                      servicesSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
                   data-testid="button-secondary-cta"
                 >
                   {hero.secondaryButtonText}
