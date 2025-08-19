@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Check, ExternalLink, Calendar } from "lucide-react";
+import { Users, Check, ExternalLink, Calendar, Sparkles } from "lucide-react";
 import type { Product } from "@/types";
 
 export default function Products() {
@@ -75,38 +75,38 @@ export default function Products() {
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto space-y-16">
           {displayProducts.map((product) => (
-            <Card key={product.id} className="bg-gradient-to-br from-soft-lilac to-warm-sand rounded-2xl p-8 md:p-12 shadow-xl border border-cool-gray mb-12">
+            <Card key={product.id} className="bg-gradient-to-br from-soft-lilac to-warm-sand rounded-2xl overflow-hidden shadow-xl border-0">
               <CardContent className="p-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div>
-                    <div className="flex items-center mb-6">
-                      <div className="w-16 h-16 bg-gradient-to-br from-logo-purple to-electric-teal rounded-xl flex items-center justify-center mr-4">
-                        <Users className="w-8 h-8 text-white" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 items-center">
+                  <div className="p-8 md:p-12">
+                    <div className="flex items-start mb-6">
+                      <div className="w-12 h-12 bg-gradient-to-br from-logo-purple to-electric-teal rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                        <Users className="w-6 h-6 text-white" />
                       </div>
-                      <h3 className="text-3xl font-bold gradient-text">{product.name}</h3>
+                      <div>
+                        <h3 className="text-2xl md:text-3xl font-bold gradient-text leading-tight">{product.name}</h3>
+                      </div>
                     </div>
                     
-                    <p className="text-lg text-muted-blue mb-8">{product.description}</p>
+                    <p className="text-base md:text-lg text-muted-blue mb-6 leading-relaxed">{product.description}</p>
                     
-                    <div className="space-y-4 mb-8">
-                      {product.features.map((feature, index) => (
+                    <div className="space-y-3 mb-8">
+                      {product.features.slice(0, 4).map((feature, index) => (
                         <div key={index} className="flex items-start">
-                          <div className="w-6 h-6 bg-logo-purple rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                          <div className="w-5 h-5 bg-logo-purple rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                             <Check className="w-3 h-3 text-white" />
                           </div>
-                          <div>
-                            <p className="text-muted-blue">{feature}</p>
-                          </div>
+                          <p className="text-muted-blue text-sm md:text-base leading-relaxed">{feature}</p>
                         </div>
                       ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       {product.websiteUrl && (
                         <Button 
-                          className="bg-logo-purple text-white hover:bg-opacity-90 transition-all duration-300 font-semibold"
+                          className="bg-logo-purple text-white hover:bg-opacity-90 transition-all duration-300 font-medium px-6 py-2"
                           onClick={() => window.open(product.websiteUrl, '_blank')}
                           data-testid={`button-visit-${product.name.toLowerCase().replace(/\s+/g, '-')}`}
                         >
@@ -116,7 +116,7 @@ export default function Products() {
                       )}
                       <Button 
                         variant="outline" 
-                        className="border-2 border-electric-teal text-electric-teal hover:bg-electric-teal hover:text-white transition-all duration-300 font-semibold"
+                        className="border-2 border-electric-teal text-electric-teal hover:bg-electric-teal hover:text-white transition-all duration-300 font-medium px-6 py-2"
                         data-testid={`button-demo-${product.name.toLowerCase().replace(/\s+/g, '-')}`}
                       >
                         <Calendar className="w-4 h-4 mr-2" />
@@ -125,12 +125,15 @@ export default function Products() {
                     </div>
                   </div>
                   
-                  <div className="relative">
-                    <img 
-                      src={product.imageUrl || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
-                      alt={`${product.name} dashboard interface`}
-                      className="rounded-xl shadow-lg w-full h-auto"
-                    />
+                  <div className="relative p-8 md:p-12 lg:p-8">
+                    <div className="relative">
+                      <img 
+                        src={product.imageUrl || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
+                        alt={`${product.name} dashboard interface`}
+                        className="rounded-xl shadow-2xl w-full h-auto object-cover aspect-[4/3]"
+                      />
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-black/5 to-transparent"></div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -138,18 +141,23 @@ export default function Products() {
           ))}
 
           {/* Coming Soon Products */}
-          <Card className="bg-gradient-to-r from-soft-lilac to-warm-sand rounded-2xl p-12 text-center">
+          <Card className="bg-gradient-to-r from-soft-lilac to-warm-sand rounded-2xl overflow-hidden border-0">
             <CardContent className="p-0">
-              <h3 className="text-2xl font-bold text-charcoal mb-4">More Products Coming Soon</h3>
-              <p className="text-lg text-muted-blue mb-8 max-w-2xl mx-auto">
-                We're continuously developing innovative AI solutions to address emerging business challenges. Stay tuned for exciting new products that will transform how you work.
-              </p>
-              <Button 
-                className="bg-electric-teal text-white hover:bg-opacity-90 transition-all duration-300 font-semibold"
-                data-testid="button-early-access"
-              >
-                Get Early Access
-              </Button>
+              <div className="text-center py-16 px-8 md:px-12">
+                <div className="w-16 h-16 bg-gradient-to-br from-logo-purple to-electric-teal rounded-xl flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-charcoal mb-4">More Products Coming Soon</h3>
+                <p className="text-base md:text-lg text-muted-blue mb-8 max-w-2xl mx-auto leading-relaxed">
+                  We're continuously developing innovative AI solutions to address emerging business challenges. Stay tuned for exciting new products that will transform how you work.
+                </p>
+                <Button 
+                  className="bg-electric-teal text-white hover:bg-opacity-90 transition-all duration-300 font-medium px-8 py-3"
+                  data-testid="button-early-access"
+                >
+                  Get Early Access
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
