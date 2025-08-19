@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Building, ShoppingCart, Factory, Banknote, ArrowRight } from "lucide-react";
+import { Building, ShoppingCart, Factory, Banknote, Plane, TruckIcon } from "lucide-react";
 import type { CaseStudy } from "@shared/schema";
 
 const industryIcons = {
@@ -9,6 +8,9 @@ const industryIcons = {
   ecommerce: ShoppingCart,
   manufacturing: Factory,
   finance: Banknote,
+  "iGaming & Sports Betting": ShoppingCart,
+  "Aviation": Plane,
+  "Supply Chain & Logistics": TruckIcon,
   default: Building,
 };
 
@@ -157,7 +159,7 @@ export default function CaseStudies() {
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {Object.entries(study.metrics).map(([key, value]) => (
                           <div key={key} className="text-center p-3 bg-soft-lilac rounded-lg">
-                            <div className="text-2xl font-bold text-logo-purple">{value}</div>
+                            <div className="text-2xl font-bold text-logo-purple">{value as string}</div>
                             <div className="text-xs text-charcoal capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}
                             </div>
@@ -167,36 +169,10 @@ export default function CaseStudies() {
                     )}
                     <p className="text-muted-blue text-sm">{study.results}</p>
                   </div>
-
-                  {study.testimonial && (
-                    <div className="border-l-4 border-logo-purple pl-4 bg-soft-lilac p-4 rounded-r-lg mb-6">
-                      <p className="text-muted-blue italic text-sm mb-2">"{study.testimonial}"</p>
-                      <p className="text-charcoal font-medium text-sm">
-                        - {study.testimonialAuthor}{study.testimonialRole ? `, ${study.testimonialRole}` : ''}, {study.client}
-                      </p>
-                    </div>
-                  )}
-
-                  <Button 
-                    variant="ghost" 
-                    className="text-logo-purple hover:text-electric-teal transition-colors p-0 h-auto font-semibold"
-                    data-testid={`button-read-case-study-${study.id}`}
-                  >
-                    Read Full Case Study <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
                 </CardContent>
               </Card>
             );
           })}
-        </div>
-        
-        <div className="text-center mt-12">
-          <Button 
-            className="bg-logo-purple text-white hover:bg-opacity-90 transition-all duration-300 font-semibold"
-            data-testid="button-view-all-case-studies"
-          >
-            View All Case Studies
-          </Button>
         </div>
       </div>
     </div>
