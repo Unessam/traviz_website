@@ -54,15 +54,6 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
                 Admin
               </a>
             )}
-            {!showAdmin && (
-              <a
-                href="/api/login"
-                className="bg-logo-purple text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-300 font-medium"
-                data-testid="nav-link-login"
-              >
-                Login
-              </a>
-            )}
           </div>
 
           {/* Mobile menu button */}
@@ -106,16 +97,6 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
                 data-testid="mobile-nav-link-admin"
               >
                 Admin
-              </a>
-            )}
-            {!showAdmin && (
-              <a
-                href="/api/login"
-                className="block px-3 py-2 bg-logo-purple text-white rounded-lg mx-3 text-center"
-                onClick={() => setIsMobileMenuOpen(false)}
-                data-testid="mobile-nav-link-login"
-              >
-                Login
               </a>
             )}
           </div>
