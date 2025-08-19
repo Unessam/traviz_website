@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Mail, Phone, Calendar, Linkedin, Twitter, Github } from "lucide-react";
+import { Mail, Calendar, Linkedin, Instagram } from "lucide-react";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -84,21 +84,17 @@ export default function Contact() {
                   </div>
                   <div>
                     <div className="font-semibold">Email</div>
-                    <div className="text-gray-300" data-testid="contact-email">hello@traviz.ai</div>
+                    <div className="text-gray-300" data-testid="contact-email">hello@traviz.co</div>
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-logo-purple to-electric-teal rounded-lg flex items-center justify-center">
-                    <Phone className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">Phone</div>
-                    <div className="text-gray-300" data-testid="contact-phone">+1 (555) 123-4567</div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
+                <a
+                  href="https://calendly.com/traviz/consultation"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-4 hover:bg-gray-800 p-3 rounded-lg transition-colors"
+                  data-testid="link-book-consultation"
+                >
                   <div className="w-12 h-12 bg-gradient-to-br from-logo-purple to-electric-teal rounded-lg flex items-center justify-center">
                     <Calendar className="w-6 h-6 text-white" />
                   </div>
@@ -106,32 +102,29 @@ export default function Contact() {
                     <div className="font-semibold">Book a Consultation</div>
                     <div className="text-gray-300">Schedule a free 30-minute strategy call</div>
                   </div>
-                </div>
+                </a>
               </div>
               
               <div className="mt-8">
                 <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
                 <div className="flex space-x-4">
                   <a 
-                    href="#" 
+                    href="https://www.linkedin.com/company/traviz/" 
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
                     data-testid="social-linkedin"
                   >
                     <Linkedin className="w-5 h-5 text-white" />
                   </a>
                   <a 
-                    href="#" 
+                    href="https://www.instagram.com/traviz.consulting" 
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
-                    data-testid="social-twitter"
+                    data-testid="social-instagram"
                   >
-                    <Twitter className="w-5 h-5 text-white" />
-                  </a>
-                  <a 
-                    href="#" 
-                    className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
-                    data-testid="social-github"
-                  >
-                    <Github className="w-5 h-5 text-white" />
+                    <Instagram className="w-5 h-5 text-white" />
                   </a>
                 </div>
               </div>
