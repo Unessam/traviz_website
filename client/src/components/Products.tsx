@@ -117,6 +117,7 @@ export default function Products() {
                       <Button 
                         variant="outline" 
                         className="border-2 border-electric-teal text-electric-teal hover:bg-electric-teal hover:text-white transition-all duration-300 font-medium px-6 py-2"
+                        onClick={() => window.open('https://agentiq-crm.com/', '_blank')}
                         data-testid={`button-demo-${product.name.toLowerCase().replace(/\s+/g, '-')}`}
                       >
                         <Calendar className="w-4 h-4 mr-2" />
