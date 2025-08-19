@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { Linkedin } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
+import travizLogo from "@assets/traviz_logo_no_background_1755634682120.png";
 
 const newsletterSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -63,7 +64,7 @@ export default function Footer() {
           <div>
             <div className="flex items-center space-x-2 mb-6">
               <img 
-                src="/attached_assets/traviz_logo_no_background_1755634682120.png"
+                src={travizLogo}
                 alt="Traviz Logo"
                 className="w-8 h-8"
               />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import travizLogo from "@assets/traviz_logo_no_background_1755634682120.png";
 
 interface NavigationProps {
   showAdmin?: boolean;
@@ -25,7 +26,7 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
           {/* Logo */}
           <div className="flex items-center space-x-2">
             <img 
-              src="/attached_assets/traviz_logo_no_background_1755634682120.png"
+              src={travizLogo}
               alt="Traviz Logo"
               className="w-8 h-8"
             />
