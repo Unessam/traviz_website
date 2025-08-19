@@ -140,26 +140,7 @@ export default function Products() {
             </Card>
           ))}
 
-          {/* Coming Soon Products */}
-          <Card className="bg-gradient-to-r from-soft-lilac to-warm-sand rounded-2xl overflow-hidden border-0">
-            <CardContent className="p-0">
-              <div className="text-center py-16 px-8 md:px-12">
-                <div className="w-16 h-16 bg-gradient-to-br from-logo-purple to-electric-teal rounded-xl flex items-center justify-center mx-auto mb-6">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-charcoal mb-4">More Products Coming Soon</h3>
-                <p className="text-base md:text-lg text-muted-blue mb-8 max-w-2xl mx-auto leading-relaxed">
-                  We're continuously developing innovative AI solutions to address emerging business challenges. Stay tuned for exciting new products that will transform how you work.
-                </p>
-                <Button 
-                  className="bg-electric-teal text-white hover:bg-opacity-90 transition-all duration-300 font-medium px-8 py-3"
-                  data-testid="button-early-access"
-                >
-                  Get Early Access
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          
         </div>
       </div>
     </div>
