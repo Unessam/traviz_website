@@ -6,10 +6,10 @@ import Services from "@/components/Services";
 import Products from "@/components/Products";
 import CaseStudies from "@/components/CaseStudies";
 import Testimonials from "@/components/Testimonials";
-import Insights from "@/components/Insights";
+// import Insights from "@/components/Insights";
 import About from "@/components/About";
 import Contact from "@/components/Contact";
-import Resources from "@/components/Resources";
+// import Resources from "@/components/Resources";
 import Footer from "@/components/Footer";
 
 export default function Landing() {
@@ -49,18 +49,18 @@ export default function Landing() {
         <section id="testimonials">
           <Testimonials />
         </section>
-        <section id="insights">
+        {/* <section id="insights">
           <Insights />
-        </section>
+        </section> */}
         <section id="about">
           <About />
         </section>
         <section id="contact">
           <Contact />
         </section>
-        <section id="resources">
+        {/* <section id="resources">
           <Resources />
-        </section>
+        </section> */}
       </main>
       <Footer />
     </div>
