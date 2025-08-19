@@ -160,6 +160,9 @@ export default function CaseStudies() {
                         {Object.entries(study.metrics).map(([key, value]) => (
                           <div key={key} className="text-center p-3 bg-soft-lilac rounded-lg">
                             <div className="text-2xl font-bold text-logo-purple">{value as string}</div>
+                            <div className="text-xs text-charcoal capitalize">
+                              {key.replace(/([A-Z])/g, ' $1').trim()}
+                            </div>
                           </div>
                         ))}
                       </div>
