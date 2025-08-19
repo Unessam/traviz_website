@@ -1,65 +1,17 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
+import React from "react";
 import { Linkedin } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
 import travizLogo from "@assets/traviz_logo_no_background_1755634682120.png";
 
-const newsletterSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
 
-type NewsletterData = z.infer<typeof newsletterSchema>;
 
 export default function Footer() {
-  const { toast } = useToast();
-
-  const form = useForm<NewsletterData>({
-    resolver: zodResolver(newsletterSchema),
-    defaultValues: {
-      email: "",
-    },
-  });
-
-  const newsletterMutation = useMutation({
-    mutationFn: async (data: NewsletterData) => {
-      // This would typically be an API call to subscribe to newsletter
-      console.log("Newsletter signup:", data);
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    },
-    onSuccess: () => {
-      toast({
-        title: "Subscribed!",
-        description: "Thank you for subscribing to our newsletter!",
-      });
-      form.reset();
-    },
-    onError: (error) => {
-      console.error("Newsletter signup error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to subscribe. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onNewsletterSubmit = (data: NewsletterData) => {
-    newsletterMutation.mutate(data);
-  };
-
   const currentYear = new Date().getFullYear();
 
   return (
     <footer className="bg-charcoal text-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Company Info */}
           <div>
             <div className="flex items-center space-x-2 mb-6">
@@ -197,48 +149,6 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
-          </div>
-          
-          {/* Newsletter */}
-          <div>
-            <h4 className="text-lg font-semibold mb-6">Newsletter</h4>
-            <p className="text-gray-300 mb-4">Stay updated with the latest AI trends and insights.</p>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onNewsletterSubmit)} className="space-y-3">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          placeholder="Enter your email"
-                          className="bg-gray-700 border-gray-600 text-white focus:ring-logo-purple focus:border-transparent"
-                          data-testid="input-newsletter-email"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button 
-                  type="submit" 
-                  className="w-full bg-logo-purple text-white hover:bg-opacity-90 transition-all font-semibold"
-                  disabled={newsletterMutation.isPending}
-                  data-testid="button-newsletter-subscribe"
-                >
-                  {newsletterMutation.isPending ? (
-                    <div className="flex items-center">
-                      <div className="spinner mr-2" />
-                      Subscribing...
-                    </div>
-                  ) : (
-                    "Subscribe"
-                  )}
-                </Button>
-              </form>
-            </Form>
           </div>
         </div>
         
