@@ -78,7 +78,7 @@ export default function Contact() {
               <h3 className="text-2xl font-semibold mb-6">Get In Touch</h3>
               
               <div className="space-y-6">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 p-3 rounded-lg">
                   <div className="w-12 h-12 bg-gradient-to-br from-logo-purple to-electric-teal rounded-lg flex items-center justify-center">
                     <Mail className="w-6 h-6 text-white" />
                   </div>
