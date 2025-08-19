@@ -137,7 +137,7 @@ export default function About() {
                 <img 
                   src={founderImage}
                   alt="Professional founder portrait in modern office setting"
-                  className="rounded-xl shadow-lg w-full max-w-sm mx-auto lg:mx-0 object-cover object-top aspect-square"
+                  className="rounded-xl shadow-lg w-full max-w-sm mx-auto lg:mx-0 object-cover object-center aspect-[3/4]"
                 />
               </div>
               <div>
