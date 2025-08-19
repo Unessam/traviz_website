@@ -24,9 +24,11 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-logo-purple to-electric-teal rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
+            <img 
+              src="/attached_assets/traviz_logo_no_background_1755634682120.png"
+              alt="Traviz Logo"
+              className="w-8 h-8"
+            />
             <span className="text-2xl font-bold gradient-text">Traviz</span>
           </div>
 

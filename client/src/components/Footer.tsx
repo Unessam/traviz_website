@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Linkedin, Twitter, Github } from "lucide-react";
+import { Linkedin } from "lucide-react";
+import { FaInstagram } from "react-icons/fa";
 
 const newsletterSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -61,9 +62,11 @@ export default function Footer() {
           {/* Company Info */}
           <div>
             <div className="flex items-center space-x-2 mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-logo-purple to-electric-teal rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">T</span>
-              </div>
+              <img 
+                src="/attached_assets/traviz_logo_no_background_1755634682120.png"
+                alt="Traviz Logo"
+                className="w-8 h-8"
+              />
               <span className="text-xl font-bold">Traviz</span>
             </div>
             <p className="text-gray-300 mb-6 leading-relaxed">
@@ -71,25 +74,22 @@ export default function Footer() {
             </p>
             <div className="flex space-x-4">
               <a 
-                href="#" 
+                href="https://www.linkedin.com/company/traviz/" 
                 className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
                 data-testid="footer-social-linkedin"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Linkedin className="w-5 h-5 text-white" />
               </a>
               <a 
-                href="#" 
+                href="https://www.instagram.com/traviz.consulting" 
                 className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
-                data-testid="footer-social-twitter"
+                data-testid="footer-social-instagram"
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <Twitter className="w-5 h-5 text-white" />
-              </a>
-              <a 
-                href="#" 
-                className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-logo-purple transition-colors"
-                data-testid="footer-social-github"
-              >
-                <Github className="w-5 h-5 text-white" />
+                <FaInstagram className="w-5 h-5 text-white" />
               </a>
             </div>
           </div>
