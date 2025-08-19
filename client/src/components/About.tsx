@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, Shield, Rocket, GraduationCap, Award, BookOpen } from "lucide-react";
 import type { AboutContent } from "@shared/schema";
+import founderImage from "@assets/60338d05-c257-4825-b3e4-01ba17919cc1_1755637770252.jpg";
 
 const valueIcons = {
   transparency: Eye,
@@ -134,9 +135,9 @@ export default function About() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="text-center lg:text-left">
                 <img 
-                  src={(about.founderImageUrl ?? defaultAbout.founderImageUrl) || "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400"} 
+                  src={founderImage}
                   alt="Professional founder portrait in modern office setting"
-                  className="rounded-xl shadow-lg w-full max-w-sm mx-auto lg:mx-0"
+                  className="rounded-xl shadow-lg w-full max-w-sm mx-auto lg:mx-0 object-cover object-top aspect-square"
                 />
               </div>
               <div>
