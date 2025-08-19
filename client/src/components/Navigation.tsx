@@ -14,7 +14,6 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
     { href: "#services", label: "Services" },
     { href: "#products", label: "Products" },
     { href: "#case-studies", label: "Case Studies" },
-    { href: "#insights", label: "Insights" },
     { href: "#about", label: "About" },
     { href: "#contact", label: "Contact" },
   ];
