@@ -84,7 +84,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <div className="font-semibold">Email</div>
-                    <div className="text-gray-300" data-testid="contact-email">hello@traviz.co</div>
+                    <div className="text-gray-300" data-testid="contact-email">info@traviz.co</div>
                   </div>
                 </div>
                 
