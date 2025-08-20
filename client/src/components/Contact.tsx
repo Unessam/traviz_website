@@ -89,7 +89,7 @@ export default function Contact() {
                 </div>
                 
                 <a
-                  href="https://calendly.com/traviz/consultation"
+                  href="https://calendly.com/traviz-info/30min"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-4 hover:bg-gray-800 p-3 rounded-lg transition-colors"
