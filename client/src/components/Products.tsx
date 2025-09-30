@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Check, ExternalLink, Calendar, Sparkles } from "lucide-react";
 import type { Product } from "@/types";
+import productImage from "@assets/Gemini_Generated_Image_g2bi7wg2bi7wg2bi_1759268765666.png";
 
 export default function Products() {
   const { data: products = [], isLoading } = useQuery<Product[]>({
@@ -129,7 +130,7 @@ export default function Products() {
                   <div className="relative p-8 md:p-12 lg:p-8">
                     <div className="relative">
                       <img 
-                        src={product.imageUrl || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
+                        src={product.imageUrl || productImage} 
                         alt={`${product.name} dashboard interface`}
                         className="rounded-xl shadow-2xl w-full h-auto object-cover aspect-[4/3]"
                       />
