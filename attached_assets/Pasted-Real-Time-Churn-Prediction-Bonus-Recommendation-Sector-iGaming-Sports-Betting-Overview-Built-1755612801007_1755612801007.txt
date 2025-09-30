@@ -1,0 +1,95 @@
+Real-Time Churn Prediction & Bonus Recommendation
+
+Sector: iGaming & Sports Betting
+
+Overview:
+Built a machine learning system to predict customer churn and increase retention for leading sports betting platforms.
+
+Challenge:
+Bookmakers faced high churn rates in a competitive, non-contractual market, with limited visibility into early warning signals.
+
+Solution:
+Deployed a real-time churn prediction model with bonus recommendation logic, integrating with customer engagement workflows.
+
+Results:
+
+23% Churn Reduction
+
+5% CLTV Increase
+
+Brief Results:
+Improved customer retention and lifetime value through predictive insights and personalized engagement.
+
+SEO Keywords: churn prediction model, AI for iGaming, customer retention with machine learning, real-time engagement AI.
+
+Anomaly Detection for Risky Player Behavior
+
+Sector: iGaming & Sports Betting
+
+Overview:
+Developed an anomaly detection model to identify problematic gambling behavior earlier and more accurately.
+
+Challenge:
+Operators needed to detect risky players faster while reducing false positives that harmed customer experience.
+
+Solution:
+Built a big-data powered anomaly detection engine using clustering and Gaussian Mixture Models, integrated into CRM workflows.
+
+Results:
+
+5 Days Earlier Detection
+
+Reduced False Positives
+
+Brief Results:
+Improved customer safety, increased satisfaction, and enhanced CRM efficiency with earlier and more accurate detection.
+
+SEO Keywords: anomaly detection in gambling, AI for responsible gaming, player behavior analytics, predictive risk modeling.
+
+AI-Powered Data Migration & Modernization
+
+Sector: Aviation
+
+Overview:
+Deployed AI-driven tools to automate large-scale data migration and modernization for a global airline.
+
+Challenge:
+Legacy migration processes were inefficient, error-prone, and lacked scalability for growing aviation data needs.
+
+Solution:
+Implemented a GenAI-powered migration toolset integrated with the airline’s infrastructure, optimizing workflows and ensuring scalability.
+
+Results:
+
+Faster Migration
+
+Increased Scalability
+
+Brief Results:
+Modernized data systems with AI automation, improving efficiency and laying the foundation for long-term growth.
+
+SEO Keywords: AI data migration, aviation AI automation, machine learning for airlines, AI modernization tools.
+
+Predictive Maintenance for Heavy Machinery
+
+Sector: Supply Chain & Logistics
+
+Overview:
+Created a predictive maintenance system to reduce downtime and optimize spare part logistics for a machinery distributor.
+
+Challenge:
+Manual maintenance schedules caused costly delays, inefficient warehousing, and unnecessary shipping expenses.
+
+Solution:
+Deployed a Random Forest model predicting machinery failures, enabling proactive parts management and delivery.
+
+Results:
+
+19% Warehousing Cost Reduction
+
+2.5 Days Faster Delivery
+
+Brief Results:
+Boosted operational efficiency, reduced costs, and improved delivery timelines with AI-powered predictive maintenance.
+
+SEO Keywords: predictive maintenance AI, machine learning in logistics, AI for supply chain, predictive analytics for machinery.
