@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { HeroContent, Stats } from "@shared/schema";
+import heroImage from "@assets/Gemini_Generated_Image_lc83uqlc83uqlc83_1759267871295.png";
 
 export default function Hero() {
   const { data: heroContent } = useQuery<HeroContent>({
@@ -72,7 +73,7 @@ export default function Hero() {
             </div>
             <div className="animate-fade-in">
               <img 
-                src={(hero as any).heroImageUrl || "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"} 
+                src={(hero as any).heroImageUrl || heroImage} 
                 alt="AI technology business automation" 
                 className="rounded-2xl shadow-2xl w-full h-auto"
               />
