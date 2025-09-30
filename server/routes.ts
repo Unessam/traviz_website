@@ -139,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           await postmarkClient.sendEmail({
             From: "noreply@traviz.co", // This needs to be a verified sender
-            To: "hello@traviz.co",
+            To: "info@traviz.co",
             Subject: `New Contact Form Submission from ${validatedData.name}`,
             HtmlBody: `
               <h2>New Contact Form Submission</h2>
