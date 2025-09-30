@@ -10,6 +10,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import type { Service } from "@shared/schema";
+import servicesImage from "@assets/Gemini_Generated_Image_x76i8px76i8px76i_1759268094642.png";
 
 const iconMap = {
   lightbulb: Lightbulb,
@@ -171,7 +172,7 @@ export default function Services() {
                     {isEven && (
                       <div className="flex items-center justify-center">
                         <img 
-                          src={service.imageUrl || "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=300"} 
+                          src={service.imageUrl || servicesImage} 
                           alt={service.title}
                           className="rounded-xl shadow-md w-full h-auto"
                         />
