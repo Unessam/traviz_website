@@ -165,7 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `
           });
         } catch (emailError) {
-          console.error("Error sending email:", emailError);
+          console.error("❌ POSTMARK EMAIL ERROR:", emailError);
+          console.error("Email details - From: noreply@traviz.co, To: info@traviz.co");
           // Don't fail the request if email fails
         }
       }
