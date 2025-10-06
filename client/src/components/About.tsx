@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, Shield, Rocket, GraduationCap, Award, BookOpen } from "lucide-react";
 import type { AboutContent } from "@shared/schema";
-import founderImage from "@assets/60338d05-c257-4825-b3e4-01ba17919cc1_1755637770252.jpg";
+import founderImage from "@assets/IMG_2936_1759759013135.jpg";
 
 const valueIcons = {
   transparency: Eye,
