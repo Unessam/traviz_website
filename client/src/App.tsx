@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
+import CaseStudySportsbookChurnPrediction from "@/pages/CaseStudySportsbookChurnPrediction";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/case-studies/sportsbook-churn-prediction" component={CaseStudySportsbookChurnPrediction} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
