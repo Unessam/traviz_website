@@ -16,6 +16,14 @@ import {
   insertResourceSchema
 } from "@shared/schema";
 
+function getRouteId(params: { id?: string | string[] }): string {
+  if (typeof params.id !== "string") {
+    throw new Error("A single resource ID is required");
+  }
+
+  return params.id;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Postmark client
   const postmarkClient = new Client(process.env.POSTMARK_API_KEY || '');
@@ -236,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/services/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertServiceSchema.partial().parse(req.body);
       const service = await storage.updateService(id, validatedData);
       res.json(service);
@@ -248,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/services/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteService(id);
       res.status(204).send();
     } catch (error) {
@@ -271,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/products/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(id, validatedData);
       res.json(product);
@@ -283,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/products/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteProduct(id);
       res.status(204).send();
     } catch (error) {
@@ -306,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/case-studies/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertCaseStudySchema.partial().parse(req.body);
       const caseStudy = await storage.updateCaseStudy(id, validatedData);
       res.json(caseStudy);
@@ -318,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/case-studies/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteCaseStudy(id);
       res.status(204).send();
     } catch (error) {
@@ -341,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/testimonials/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertTestimonialSchema.partial().parse(req.body);
       const testimonial = await storage.updateTestimonial(id, validatedData);
       res.json(testimonial);
@@ -353,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/testimonials/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteTestimonial(id);
       res.status(204).send();
     } catch (error) {
@@ -376,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/blog-posts/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertBlogPostSchema.partial().parse(req.body);
       const blogPost = await storage.updateBlogPost(id, validatedData);
       res.json(blogPost);
@@ -388,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/blog-posts/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteBlogPost(id);
       res.status(204).send();
     } catch (error) {
@@ -435,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/resources/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       const validatedData = insertResourceSchema.partial().parse(req.body);
       const resource = await storage.updateResource(id, validatedData);
       res.json(resource);
@@ -447,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/resources/:id', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.deleteResource(id);
       res.status(204).send();
     } catch (error) {
@@ -459,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mark contact submission as read
   app.patch('/api/admin/contact-submissions/:id/read', isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = getRouteId(req.params);
       await storage.markContactSubmissionAsRead(id);
       res.status(204).send();
     } catch (error) {
