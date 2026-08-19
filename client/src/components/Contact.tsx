@@ -66,9 +66,9 @@ export default function Contact() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Let's Transform Your Business</h2>
+            <h2 className="text-4xl font-bold mb-4">Start with an AI readiness conversation</h2>
             <p className="text-xl text-gray-300">
-              Ready to unlock the power of AI automation? Let's discuss how we can help you achieve your goals.
+              Discuss the decision, data, workflow and implementation constraints that matter most to your team.
             </p>
           </div>
           
@@ -99,8 +99,8 @@ export default function Contact() {
                     <Calendar className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="font-semibold">Book a Consultation</div>
-                    <div className="text-gray-300">Schedule a free 30-minute strategy call</div>
+                    <div className="font-semibold">Book an AI readiness call</div>
+                    <div className="text-gray-300">A qualification conversation about your decision, data and implementation path.</div>
                   </div>
                 </a>
               </div>
