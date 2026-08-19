@@ -11,11 +11,11 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "#home", label: "Home" },
-    { href: "#services", label: "How Traviz Works" },
-    { href: "#case-studies", label: "Experience & Proof" },
-    { href: "#about", label: "About" },
-    { href: "#contact", label: "Contact" },
+    { href: "/#home", label: "Home" },
+    { href: "/#services", label: "How Traviz Works" },
+    { href: "/#case-studies", label: "Experience & Proof" },
+    { href: "/#about", label: "About" },
+    { href: "/#contact", label: "Contact" },
   ];
 
   return (

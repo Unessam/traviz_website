@@ -9,7 +9,7 @@ export default function Hero() {
         <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div className="animate-slide-up">
-              <p className="mb-4 font-semibold text-logo-purple">Founder-led AI strategy, automation and delivery</p>
+              <p className="mb-4 font-semibold text-logo-purple">Traviz AI strategy, automation and delivery</p>
               <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
                 <span className="gradient-text">Turn customer and operational data into practical AI decisions.</span>
               </h1>
@@ -25,11 +25,10 @@ export default function Hero() {
       </div>
       <div className="bg-cool-gray py-16">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 text-center sm:px-6 md:grid-cols-3 lg:px-8">
-          <div><div className="mb-4 text-4xl font-bold text-logo-purple">1,000+ hours</div><div className="font-medium leading-relaxed text-charcoal">Estimated annual time saved through Founder-led automation work</div></div>
+          <div><div className="mb-4 text-4xl font-bold text-logo-purple">1,000+ hours</div><div className="font-medium leading-relaxed text-charcoal">Estimated annual time saved through Traviz-led automation work</div></div>
           <div><div className="mb-4 text-4xl font-bold text-electric-teal">Cross-sector</div><div className="font-medium leading-relaxed text-charcoal">iGaming, healthcare, aviation, finance and other operationally complex environments</div></div>
           <div><div className="mb-4 text-4xl font-bold text-logo-purple">Practical delivery</div><div className="font-medium leading-relaxed text-charcoal">Experience spanning automation, decision support, customer data and applied AI implementation</div></div>
         </div>
-        <p className="mx-auto mt-8 max-w-3xl px-4 text-center text-sm text-muted-blue">Founder experience refers to work delivered by the Founder across prior and current engagements. Client-specific proof is used only with the relevant permission.</p>
       </div>
     </div>
   );

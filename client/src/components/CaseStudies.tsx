@@ -33,8 +33,8 @@ export default function CaseStudies() {
           </CardContent>
         </Card>
         <div className="mx-auto mt-8 max-w-4xl rounded-xl border border-cool-gray bg-off-white p-8">
-          <h3 className="mb-3 text-xl font-bold text-charcoal">Experience and proof</h3>
-          <p className="leading-relaxed text-muted-blue">Founder experience spans iGaming, healthcare, aviation, finance and other operationally complex environments. It is presented as Founder experience; client-specific proof is used only with the relevant permission.</p>
+          <h3 className="mb-3 text-xl font-bold text-charcoal">More Traviz case studies are in preparation</h3>
+          <p className="leading-relaxed text-muted-blue">We are preparing additional real case studies from Traviz work across iGaming, healthcare, aviation, finance and other operationally complex environments.</p>
         </div>
       </div>
     </div>
