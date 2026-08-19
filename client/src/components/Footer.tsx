@@ -13,7 +13,7 @@ export default function Footer() {
           <div><h4 className="mb-6 text-lg font-semibold">How Traviz works</h4><ul className="space-y-3 text-gray-300"><li><a href="#services" className="transition-colors hover:text-electric-teal">AI Opportunity & Data Readiness Sprint</a></li><li><a href="#services" className="transition-colors hover:text-electric-teal">Customer Intelligence and Retention AI</a></li><li><a href="#services" className="transition-colors hover:text-electric-teal">Workflow Automation and Agentic Operations</a></li><li><a href="#services" className="transition-colors hover:text-electric-teal">AI and Data Implementation Planning</a></li></ul></div>
           <div><h4 className="mb-6 text-lg font-semibold">Traviz</h4><ul className="space-y-3 text-gray-300"><li><a href="#about" className="transition-colors hover:text-electric-teal">About Traviz</a></li><li><a href="#case-studies" className="transition-colors hover:text-electric-teal">Experience & Proof</a></li><li><a href="#contact" className="transition-colors hover:text-electric-teal">Contact</a></li></ul></div>
         </div>
-        <div className="mt-12 border-t border-gray-700 pt-8 text-center"><p className="text-gray-300">© {currentYear} Traviz. All rights reserved.</p><p className="mt-2 text-sm text-gray-400">Privacy and terms links will be added before release.</p></div>
+        <div className="mt-12 border-t border-gray-700 pt-8 text-center"><p className="text-gray-300">© {currentYear} Traviz. All rights reserved.</p></div>
       </div>
     </footer>
   );
