@@ -2,31 +2,27 @@ import { useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import Services from "@/components/Services";
-import Products from "@/components/Products";
 import CaseStudies from "@/components/CaseStudies";
-import Testimonials from "@/components/Testimonials";
-import Insights from "@/components/Insights";
 import About from "@/components/About";
 import Contact from "@/components/Contact";
-import Resources from "@/components/Resources";
 import Footer from "@/components/Footer";
 
 export default function Home() {
   useEffect(() => {
-    // Add smooth scrolling for anchor links
+    const scrollToHash = (behavior: ScrollBehavior) => {
+      const element = window.location.hash ? document.querySelector(window.location.hash) : null;
+      element?.scrollIntoView({ behavior });
+    };
+    requestAnimationFrame(() => scrollToHash("auto"));
     const handleAnchorClick = (e: Event) => {
-      const target = e.target as HTMLAnchorElement;
-      if (target.hash) {
+      const anchor = (e.target as Element).closest("a");
+      if (anchor?.hash && anchor.pathname === window.location.pathname) {
         e.preventDefault();
-        const element = document.querySelector(target.hash);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
+        document.getElementById(anchor.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
       }
     };
-
-    document.addEventListener('click', handleAnchorClick);
-    return () => document.removeEventListener('click', handleAnchorClick);
+    document.addEventListener("click", handleAnchorClick);
+    return () => document.removeEventListener("click", handleAnchorClick);
   }, []);
 
   return (
@@ -39,26 +35,14 @@ export default function Home() {
         <section id="services">
           <Services />
         </section>
-        <section id="products">
-          <Products />
-        </section>
         <section id="case-studies">
           <CaseStudies />
-        </section>
-        <section id="testimonials">
-          <Testimonials />
-        </section>
-        <section id="insights">
-          <Insights />
         </section>
         <section id="about">
           <About />
         </section>
         <section id="contact">
           <Contact />
-        </section>
-        <section id="resources">
-          <Resources />
         </section>
       </main>
       <Footer />
