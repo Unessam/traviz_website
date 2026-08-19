@@ -12,9 +12,8 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
 
   const navItems = [
     { href: "#home", label: "Home" },
-    { href: "#services", label: "Services" },
-    { href: "#products", label: "Products" },
-    { href: "#case-studies", label: "Case Studies" },
+    { href: "#services", label: "How Traviz Works" },
+    { href: "#case-studies", label: "Experience & Proof" },
     { href: "#about", label: "About" },
     { href: "#contact", label: "Contact" },
   ];

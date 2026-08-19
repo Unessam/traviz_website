@@ -2,13 +2,9 @@ import { useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import Services from "@/components/Services";
-import Products from "@/components/Products";
 import CaseStudies from "@/components/CaseStudies";
-import Testimonials from "@/components/Testimonials";
-import Insights from "@/components/Insights";
 import About from "@/components/About";
 import Contact from "@/components/Contact";
-import Resources from "@/components/Resources";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -39,26 +35,14 @@ export default function Home() {
         <section id="services">
           <Services />
         </section>
-        <section id="products">
-          <Products />
-        </section>
         <section id="case-studies">
           <CaseStudies />
-        </section>
-        <section id="testimonials">
-          <Testimonials />
-        </section>
-        <section id="insights">
-          <Insights />
         </section>
         <section id="about">
           <About />
         </section>
         <section id="contact">
           <Contact />
-        </section>
-        <section id="resources">
-          <Resources />
         </section>
       </main>
       <Footer />
