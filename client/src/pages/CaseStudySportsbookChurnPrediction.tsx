@@ -11,6 +11,7 @@ const phases = [
 
 export default function CaseStudySportsbookChurnPrediction() {
   useEffect(() => {
+    window.scrollTo(0, 0);
     document.title = "From churn ambiguity to a route for earlier retention action | Traviz";
 
     let description = document.querySelector('meta[name="description"]');
