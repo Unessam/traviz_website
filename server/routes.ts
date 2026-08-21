@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public content routes
-  app.get('/api/hero', async (req, res) => {
+  app.get('/api/hero', isAuthenticated, async (req, res) => {
     try {
       const heroContent = await storage.getHeroContent();
       res.json(heroContent);
@@ -54,7 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/services', async (req, res) => {
+  app.get('/api/services', isAuthenticated, async (req, res) => {
     try {
       const services = await storage.getServices();
       res.json(services);
@@ -64,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/products', async (req, res) => {
+  app.get('/api/products', isAuthenticated, async (req, res) => {
     try {
       const products = await storage.getProducts();
       res.json(products);
@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/case-studies', async (req, res) => {
+  app.get('/api/case-studies', isAuthenticated, async (req, res) => {
     try {
       const caseStudies = await storage.getCaseStudies();
       res.json(caseStudies);
@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/testimonials', async (req, res) => {
+  app.get('/api/testimonials', isAuthenticated, async (req, res) => {
     try {
       const testimonials = await storage.getTestimonials();
       res.json(testimonials);
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/blog-posts', async (req, res) => {
+  app.get('/api/blog-posts', isAuthenticated, async (req, res) => {
     try {
       const blogPosts = await storage.getPublishedBlogPosts();
       res.json(blogPosts);
@@ -104,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/about', async (req, res) => {
+  app.get('/api/about', isAuthenticated, async (req, res) => {
     try {
       const aboutContent = await storage.getAboutContent();
       res.json(aboutContent);
@@ -114,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/stats', async (req, res) => {
+  app.get('/api/stats', isAuthenticated, async (req, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);
@@ -124,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/resources', async (req, res) => {
+  app.get('/api/resources', isAuthenticated, async (req, res) => {
     try {
       const resources = await storage.getResources();
       res.json(resources);
