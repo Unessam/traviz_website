@@ -1,5 +1,10 @@
-import founderImage from "@assets/IMG_2936_1759759013135.jpg";
 import { Eye, Shield, Target } from "lucide-react";
+
+const principles = [
+  ["Decision-led", "Start with the customer, operational or workflow decision that needs to improve—not a technology demo."],
+  ["Evidence-led", "Clarify the data, evaluation and ownership needed before committing to a larger implementation."],
+  ["Practical", "Turn validated opportunities into focused implementation plans that product, data and operational teams can use."],
+];
 
 export default function About() {
   const icons = [Target, Eye, Shield];
@@ -14,9 +19,3 @@ export default function About() {
     </div>
   );
 }
-
-const principles = [
-  ["Decision-led", "Start with the customer, operational or workflow decision that needs to improve—not a technology demo."],
-  ["Evidence-led", "Clarify the data, evaluation and ownership needed before committing to a larger implementation."],
-  ["Practical", "Turn validated opportunities into focused implementation plans that product, data and operational teams can use."],
-];
