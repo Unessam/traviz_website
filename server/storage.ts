@@ -34,12 +34,20 @@ import {
   type InsertResource,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import {
+  getContactSubmissionDeletionCutoff,
+  getOAuthAccessRestorationPatch,
+  getOAuthUserAnonymisationCutoff,
+} from "./retention";
+import { and, desc, eq, isNotNull, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  setUserLegalHold(id: string, legalHold: boolean, reason?: string): Promise<User | undefined>;
+  recordUserAccessRemoval(id: string, removedAt: Date): Promise<User | undefined>;
+  anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined>;
 
   // Hero content
   getHeroContent(): Promise<HeroContent | undefined>;
@@ -89,6 +97,8 @@ export interface IStorage {
   getContactSubmissions(): Promise<ContactSubmission[]>;
   createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission>;
   markContactSubmissionAsRead(id: string): Promise<void>;
+  setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string): Promise<ContactSubmission | undefined>;
+  deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean>;
 
   // Stats
   getStats(): Promise<Stats | undefined>;
@@ -116,12 +126,67 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          ...userData,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          ...getOAuthAccessRestorationPatch(),
           updatedAt: new Date(),
         },
       })
       .returning();
     return user;
+  }
+
+  async setUserLegalHold(
+    id: string,
+    legalHold: boolean,
+    reason?: string,
+  ): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        legalHold,
+        legalHoldReason: legalHold ? reason ?? null : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  async recordUserAccessRemoval(id: string, removedAt: Date): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        accessRemovedAt: removedAt,
+        updatedAt: removedAt,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  async anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined> {
+    const cutoff = getOAuthUserAnonymisationCutoff(referenceTime);
+    const [anonymized] = await db
+      .update(users)
+      .set({
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+        retentionActionAt: referenceTime,
+        updatedAt: referenceTime,
+      })
+      .where(and(
+        eq(users.id, id),
+        eq(users.legalHold, false),
+        isNotNull(users.accessRemovedAt),
+        lte(users.accessRemovedAt, cutoff),
+      ))
+      .returning();
+    return anonymized;
   }
 
   // Hero content
@@ -316,12 +381,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission> {
-    const [created] = await db.insert(contactSubmissions).values(submission).returning();
+    const [created] = await db
+      .insert(contactSubmissions)
+      .values({
+        ...submission,
+        legalHold: false,
+        legalHoldReason: null,
+      })
+      .returning();
     return created;
   }
 
   async markContactSubmissionAsRead(id: string): Promise<void> {
     await db.update(contactSubmissions).set({ isRead: true }).where(eq(contactSubmissions.id, id));
+  }
+
+  async setContactSubmissionLegalHold(
+    id: string,
+    legalHold: boolean,
+    reason?: string,
+  ): Promise<ContactSubmission | undefined> {
+    const [updated] = await db
+      .update(contactSubmissions)
+      .set({
+        legalHold,
+        legalHoldReason: legalHold ? reason ?? null : null,
+      })
+      .where(eq(contactSubmissions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean> {
+    const cutoff = getContactSubmissionDeletionCutoff(referenceTime);
+    const deleted = await db
+      .delete(contactSubmissions)
+      .where(and(
+        eq(contactSubmissions.id, id),
+        eq(contactSubmissions.legalHold, false),
+        lte(contactSubmissions.createdAt, cutoff),
+      ))
+      .returning({ id: contactSubmissions.id });
+    return deleted.length > 0;
   }
 
   // Stats
