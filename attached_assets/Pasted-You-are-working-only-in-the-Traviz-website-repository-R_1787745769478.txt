@@ -1,0 +1,90 @@
+You are working only in the Traviz website repository.
+
+Repository:
+- /Users/younessandi/traviz_website
+
+Create and work only on this feature branch:
+- feature/tvz-37-retention-postmark
+
+Goal:
+Implement the feature-branch portion of TVZ-37 website data-retention controls and Postmark notification recovery.
+
+Strict boundaries:
+- Do not deploy.
+- Do not merge.
+- Do not push unless explicitly requested later.
+- Do not run db:push or apply any migration to a real database.
+- Do not connect to a production database.
+- Do not inspect, print, copy, change, or create any secret.
+- Do not change Replit, Postmark, database, storage, DNS, or production configuration.
+- Do not submit the public contact form.
+- Do not send a real email.
+- Do not add a new dependency or test framework.
+- Do not modify .replit deployment settings.
+- Use synthetic test data only.
+- Do not claim Postmark is active or verified.
+
+Required implementation scope:
+
+1. Retention data model
+   - Add the minimum schema fields required to track:
+     - a legal-hold exception and its reason;
+     - OAuth-user access removal time;
+     - any minimum non-personal retention action evidence required by the approved design.
+   - Do not add unnecessary personal-data fields.
+
+2. Retention logic
+   - Implement testable retention decision logic:
+     - contact submissions are eligible for hard deletion 12 months after creation;
+     - OAuth user records are eligible for anonymisation 90 days after access removal;
+     - legal hold pauses the relevant action.
+   - Do not create or enable an automatic scheduler yet.
+   - Do not add a public endpoint that can delete data.
+   - Keep the retention mechanism disabled from normal application execution until a separate scheduling and production approval exists.
+
+3. Data actions
+   - Add repository-level functions needed for:
+     - hard deletion of eligible contact submissions;
+     - anonymisation of eligible OAuth user records;
+     - recording or handling legal-hold state.
+   - Do not execute these actions against a real database.
+
+4. Postmark notification safety
+   - Keep contact submission storage independent from notification delivery.
+   - Add a safe, testable notification abstraction or helper so that:
+     - a missing or failing Postmark configuration does not lose the stored submission;
+     - errors do not log form contents, email addresses, or secrets;
+     - notification delivery can be unit-tested with a fake client;
+     - the existing sender address is only used when configured through the existing environment-variable route.
+   - Do not set or verify POSTMARK_API_KEY.
+   - Do not send a test email.
+   - Do not state that DKIM, Return-Path, or Postmark delivery is verified.
+
+5. Tests and verification
+   - Add synthetic tests using only dependencies already in the repository.
+   - Cover:
+     - an eligible contact submission;
+     - a contact submission under legal hold;
+     - an eligible OAuth user record;
+     - an OAuth user record under legal hold;
+     - notification success through a fake client;
+     - notification failure while the submission remains stored.
+   - Run:
+     - npm run check
+     - npm run build
+     - the new synthetic tests
+   - Fix failures caused by your changes.
+
+6. Documentation
+   - Add concise developer documentation in the website repository describing:
+     - the retention logic;
+     - the fact that scheduling and production activation are still disabled;
+     - the future approvals required before any real deletion, anonymisation, Postmark sending, or deployment.
+
+Final response format:
+1. Files changed.
+2. Retention and Postmark design implemented.
+3. Test commands and results.
+4. Anything intentionally not implemented.
+5. Risks and approvals still required.
+6. Do not claim production readiness.
