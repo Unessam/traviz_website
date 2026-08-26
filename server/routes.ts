@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { Client } from "postmark";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { createContactNotifier, type ContactNotifier } from "./contactNotification";
+import { persistContactSubmissionAndNotify } from "./contactSubmission";
 import { 
   insertHeroContentSchema,
   insertServiceSchema,
@@ -11,7 +12,7 @@ import {
   insertTestimonialSchema,
   insertBlogPostSchema,
   insertAboutContentSchema,
-  insertContactSubmissionSchema,
+  contactFormSubmissionSchema,
   insertStatsSchema,
   insertResourceSchema
 } from "@shared/schema";
@@ -24,9 +25,15 @@ function getRouteId(params: { id?: string | string[] }): string {
   return params.id;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize Postmark client
-  const postmarkClient = new Client(process.env.POSTMARK_API_KEY || '');
+export interface RouteDependencies {
+  contactNotifier?: ContactNotifier;
+}
+
+export async function registerRoutes(
+  app: Express,
+  dependencies: RouteDependencies = {},
+): Promise<Server> {
+  const contactNotifier = dependencies.contactNotifier ?? createContactNotifier();
 
   // Auth middleware
   await setupAuth(app);
@@ -137,47 +144,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contact form submission
   app.post('/api/contact', async (req, res) => {
     try {
-      const validatedData = insertContactSubmissionSchema.parse(req.body);
+      const validatedData = contactFormSubmissionSchema.parse(req.body);
       
-      // Store in database
-      const submission = await storage.createContactSubmission(validatedData);
-      
-      // Send email via Postmark
-      if (process.env.POSTMARK_API_KEY) {
-        try {
-          await postmarkClient.sendEmail({
-            From: "noreply@traviz.co", // This needs to be a verified sender
-            To: "info@traviz.co",
-            Subject: `New Contact Form Submission from ${validatedData.name}`,
-            HtmlBody: `
-              <h2>New Contact Form Submission</h2>
-              <p><strong>Name:</strong> ${validatedData.name}</p>
-              <p><strong>Email:</strong> ${validatedData.email}</p>
-              ${validatedData.company ? `<p><strong>Company:</strong> ${validatedData.company}</p>` : ''}
-              <p><strong>Message:</strong></p>
-              <p>${validatedData.message.replace(/\n/g, '<br>')}</p>
-              <hr>
-              <p><em>Submitted at: ${new Date().toISOString()}</em></p>
-            `,
-            TextBody: `
-              New Contact Form Submission
-              
-              Name: ${validatedData.name}
-              Email: ${validatedData.email}
-              ${validatedData.company ? `Company: ${validatedData.company}` : ''}
-              
-              Message:
-              ${validatedData.message}
-              
-              Submitted at: ${new Date().toISOString()}
-            `
-          });
-        } catch (emailError) {
-          console.error("❌ POSTMARK EMAIL ERROR:", emailError);
-          console.error("Email details - From: noreply@traviz.co, To: info@traviz.co");
-          // Don't fail the request if email fails
-        }
-      }
+      const submission = await persistContactSubmissionAndNotify(
+        validatedData,
+        storage,
+        contactNotifier,
+      );
       
       res.status(201).json({ message: "Contact form submitted successfully", id: submission.id });
     } catch (error) {

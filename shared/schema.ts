@@ -30,6 +30,10 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  legalHold: boolean("legal_hold").notNull().default(false),
+  legalHoldReason: text("legal_hold_reason"),
+  accessRemovedAt: timestamp("access_removed_at"),
+  retentionActionAt: timestamp("retention_action_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -140,6 +144,8 @@ export const contactSubmissions = pgTable("contact_submissions", {
   company: varchar("company"),
   message: text("message").notNull(),
   isRead: boolean("is_read").default(false),
+  legalHold: boolean("legal_hold").notNull().default(false),
+  legalHoldReason: text("legal_hold_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -177,6 +183,14 @@ export const insertTestimonialSchema = createInsertSchema(testimonials);
 export const insertBlogPostSchema = createInsertSchema(blogPosts);
 export const insertAboutContentSchema = createInsertSchema(aboutContent);
 export const insertContactSubmissionSchema = createInsertSchema(contactSubmissions);
+export const contactFormSubmissionSchema = insertContactSubmissionSchema
+  .pick({
+    name: true,
+    email: true,
+    company: true,
+    message: true,
+  })
+  .strict();
 export const insertStatsSchema = createInsertSchema(stats);
 export const insertResourceSchema = createInsertSchema(resources);
 
@@ -199,6 +213,7 @@ export type AboutContent = typeof aboutContent.$inferSelect;
 export type InsertAboutContent = z.infer<typeof insertAboutContentSchema>;
 export type ContactSubmission = typeof contactSubmissions.$inferSelect;
 export type InsertContactSubmission = z.infer<typeof insertContactSubmissionSchema>;
+export type ContactFormSubmission = z.infer<typeof contactFormSubmissionSchema>;
 export type Stats = typeof stats.$inferSelect;
 export type InsertStats = z.infer<typeof insertStatsSchema>;
 export type Resource = typeof resources.$inferSelect;
