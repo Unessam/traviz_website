@@ -9,7 +9,7 @@ channel = "stable-24_05"
 deploymentTarget = "autoscale"
 # The build command includes the production-only dependency audit gate.
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["npm", "run", "start:with-migrations"]
 
 [[ports]]
 localPort = 5000

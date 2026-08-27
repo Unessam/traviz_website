@@ -149,6 +149,47 @@ export const contactSubmissions = pgTable("contact_submissions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const retentionRuns = pgTable(
+  "retention_runs",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    requestedBy: varchar("requested_by").notNull(),
+    referenceTime: timestamp("reference_time").notNull(),
+    dryRun: boolean("dry_run").notNull(),
+    status: varchar("status").notNull(),
+    candidateFingerprint: varchar("candidate_fingerprint").notNull(),
+    contactEligible: integer("contact_eligible").notNull().default(0),
+    usersEligible: integer("users_eligible").notNull().default(0),
+    contactsDeleted: integer("contacts_deleted").notNull().default(0),
+    usersAnonymized: integer("users_anonymized").notNull().default(0),
+    blockedByLegalHold: integer("blocked_by_legal_hold").notNull().default(0),
+    skipped: integer("skipped").notNull().default(0),
+    failureCode: varchar("failure_code"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [index("IDX_retention_runs_created_at").on(table.createdAt)],
+);
+
+export const retentionAuditEvents = pgTable(
+  "retention_audit_events",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    eventType: varchar("event_type").notNull(),
+    targetType: varchar("target_type").notNull(),
+    targetId: varchar("target_id"),
+    actorId: varchar("actor_id").notNull(),
+    runId: varchar("run_id"),
+    dryRun: boolean("dry_run").notNull().default(false),
+    details: jsonb("details").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("IDX_retention_audit_events_created_at").on(table.createdAt),
+    index("IDX_retention_audit_events_target").on(table.targetType, table.targetId),
+  ],
+);
+
 export const stats = pgTable("stats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   hoursSaved: integer("hours_saved"),
@@ -214,6 +255,8 @@ export type InsertAboutContent = z.infer<typeof insertAboutContentSchema>;
 export type ContactSubmission = typeof contactSubmissions.$inferSelect;
 export type InsertContactSubmission = z.infer<typeof insertContactSubmissionSchema>;
 export type ContactFormSubmission = z.infer<typeof contactFormSubmissionSchema>;
+export type RetentionRun = typeof retentionRuns.$inferSelect;
+export type RetentionAuditEvent = typeof retentionAuditEvents.$inferSelect;
 export type Stats = typeof stats.$inferSelect;
 export type InsertStats = z.infer<typeof insertStatsSchema>;
 export type Resource = typeof resources.$inferSelect;

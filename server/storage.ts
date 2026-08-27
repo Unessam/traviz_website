@@ -10,6 +10,8 @@ import {
   contactSubmissions,
   stats,
   resources,
+  retentionRuns,
+  retentionAuditEvents,
   type User,
   type UpsertUser,
   type HeroContent,
@@ -32,22 +34,28 @@ import {
   type InsertStats,
   type Resource,
   type InsertResource,
+  type RetentionRun,
+  type RetentionAuditEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import {
+  type RetentionAuditContext,
+  type RetentionAuditEventType,
+  type RetentionTargetContact,
+  type RetentionTargetUser,
   getContactSubmissionDeletionCutoff,
   getOAuthAccessRestorationPatch,
   getOAuthUserAnonymisationCutoff,
 } from "./retention";
-import { and, desc, eq, isNotNull, lte } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  setUserLegalHold(id: string, legalHold: boolean, reason?: string): Promise<User | undefined>;
-  recordUserAccessRemoval(id: string, removedAt: Date): Promise<User | undefined>;
-  anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined>;
+  setUserLegalHold(id: string, legalHold: boolean, reason?: string, audit?: RetentionAuditContext): Promise<User | undefined>;
+  recordUserAccessRemoval(id: string, removedAt: Date, audit?: RetentionAuditContext): Promise<User | undefined>;
+  anonymizeEligibleUser(id: string, referenceTime: Date, audit?: RetentionAuditContext): Promise<User | undefined>;
 
   // Hero content
   getHeroContent(): Promise<HeroContent | undefined>;
@@ -97,8 +105,40 @@ export interface IStorage {
   getContactSubmissions(): Promise<ContactSubmission[]>;
   createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission>;
   markContactSubmissionAsRead(id: string): Promise<void>;
-  setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string): Promise<ContactSubmission | undefined>;
-  deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean>;
+  setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string, audit?: RetentionAuditContext): Promise<ContactSubmission | undefined>;
+  deleteEligibleContactSubmission(id: string, referenceTime: Date, audit?: RetentionAuditContext): Promise<boolean>;
+
+  getRetentionTargets(): Promise<{ contacts: RetentionTargetContact[]; users: RetentionTargetUser[] }>;
+  createRetentionRun(input: {
+    requestedBy: string;
+    referenceTime: Date;
+    dryRun: boolean;
+    status: string;
+    candidateFingerprint: string;
+  }): Promise<RetentionRun>;
+  updateRetentionRun(id: string, update: Partial<{
+    status: string;
+    contactEligible: number;
+    usersEligible: number;
+    contactsDeleted: number;
+    usersAnonymized: number;
+    blockedByLegalHold: number;
+    skipped: number;
+    failureCode: string | null;
+    completedAt: Date;
+  }>): Promise<RetentionRun | undefined>;
+  getRetentionRun(id: string): Promise<RetentionRun | undefined>;
+  getRecentRetentionRuns(limit?: number): Promise<RetentionRun[]>;
+  getRecentRetentionAuditEvents(limit?: number): Promise<RetentionAuditEvent[]>;
+  recordRetentionAuditEvent(input: {
+    eventType: RetentionAuditEventType;
+    targetType: string;
+    targetId?: string;
+    actorId: string;
+    runId?: string;
+    dryRun?: boolean;
+    details?: Record<string, unknown>;
+  }): Promise<void>;
 
   // Stats
   getStats(): Promise<Stats | undefined>;
@@ -142,51 +182,92 @@ export class DatabaseStorage implements IStorage {
     id: string,
     legalHold: boolean,
     reason?: string,
+    audit?: RetentionAuditContext,
   ): Promise<User | undefined> {
-    const [updated] = await db
-      .update(users)
-      .set({
-        legalHold,
-        legalHoldReason: legalHold ? reason ?? null : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, id))
-      .returning();
-    return updated;
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(users)
+        .set({
+          legalHold,
+          legalHoldReason: legalHold ? reason ?? null : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, id))
+        .returning();
+      if (updated && audit) {
+        await this.insertRetentionAuditEvent(tx, {
+          eventType: "user_legal_hold_changed",
+          targetType: "user",
+          targetId: id,
+          actorId: audit.actorId,
+          runId: audit.runId,
+          dryRun: audit.dryRun,
+          details: { legalHold, hasReason: Boolean(reason) },
+        });
+      }
+      return updated;
+    });
   }
 
-  async recordUserAccessRemoval(id: string, removedAt: Date): Promise<User | undefined> {
-    const [updated] = await db
-      .update(users)
-      .set({
-        accessRemovedAt: removedAt,
-        updatedAt: removedAt,
-      })
-      .where(eq(users.id, id))
-      .returning();
-    return updated;
+  async recordUserAccessRemoval(id: string, removedAt: Date, audit?: RetentionAuditContext): Promise<User | undefined> {
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(users)
+        .set({
+          accessRemovedAt: removedAt,
+          updatedAt: removedAt,
+        })
+        .where(eq(users.id, id))
+        .returning();
+      if (updated && audit) {
+        await this.insertRetentionAuditEvent(tx, {
+          eventType: "user_access_removed",
+          targetType: "user",
+          targetId: id,
+          actorId: audit.actorId,
+          runId: audit.runId,
+          dryRun: audit.dryRun,
+          details: { removedAt: removedAt.toISOString() },
+        });
+      }
+      return updated;
+    });
   }
 
-  async anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined> {
+  async anonymizeEligibleUser(id: string, referenceTime: Date, audit?: RetentionAuditContext): Promise<User | undefined> {
     const cutoff = getOAuthUserAnonymisationCutoff(referenceTime);
-    const [anonymized] = await db
-      .update(users)
-      .set({
-        email: null,
-        firstName: null,
-        lastName: null,
-        profileImageUrl: null,
-        retentionActionAt: referenceTime,
-        updatedAt: referenceTime,
-      })
-      .where(and(
-        eq(users.id, id),
-        eq(users.legalHold, false),
-        isNotNull(users.accessRemovedAt),
-        lte(users.accessRemovedAt, cutoff),
-      ))
-      .returning();
-    return anonymized;
+    return await db.transaction(async (tx) => {
+      const [anonymized] = await tx
+        .update(users)
+        .set({
+          email: null,
+          firstName: null,
+          lastName: null,
+          profileImageUrl: null,
+          retentionActionAt: referenceTime,
+          updatedAt: referenceTime,
+        })
+        .where(and(
+          eq(users.id, id),
+          eq(users.legalHold, false),
+          isNotNull(users.accessRemovedAt),
+          isNull(users.retentionActionAt),
+          lte(users.accessRemovedAt, cutoff),
+        ))
+        .returning();
+      if (anonymized && audit) {
+        await this.insertRetentionAuditEvent(tx, {
+          eventType: "user_anonymized",
+          targetType: "user",
+          targetId: id,
+          actorId: audit.actorId,
+          runId: audit.runId,
+          dryRun: audit.dryRun,
+          details: { referenceTime: referenceTime.toISOString() },
+        });
+      }
+      return anonymized;
+    });
   }
 
   // Hero content
@@ -400,29 +481,158 @@ export class DatabaseStorage implements IStorage {
     id: string,
     legalHold: boolean,
     reason?: string,
+    audit?: RetentionAuditContext,
   ): Promise<ContactSubmission | undefined> {
-    const [updated] = await db
-      .update(contactSubmissions)
-      .set({
-        legalHold,
-        legalHoldReason: legalHold ? reason ?? null : null,
-      })
-      .where(eq(contactSubmissions.id, id))
-      .returning();
-    return updated;
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(contactSubmissions)
+        .set({
+          legalHold,
+          legalHoldReason: legalHold ? reason ?? null : null,
+        })
+        .where(eq(contactSubmissions.id, id))
+        .returning();
+      if (updated && audit) {
+        await this.insertRetentionAuditEvent(tx, {
+          eventType: "contact_legal_hold_changed",
+          targetType: "contact_submission",
+          targetId: id,
+          actorId: audit.actorId,
+          runId: audit.runId,
+          dryRun: audit.dryRun,
+          details: { legalHold, hasReason: Boolean(reason) },
+        });
+      }
+      return updated;
+    });
   }
 
-  async deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean> {
+  async deleteEligibleContactSubmission(id: string, referenceTime: Date, audit?: RetentionAuditContext): Promise<boolean> {
     const cutoff = getContactSubmissionDeletionCutoff(referenceTime);
-    const deleted = await db
-      .delete(contactSubmissions)
-      .where(and(
-        eq(contactSubmissions.id, id),
-        eq(contactSubmissions.legalHold, false),
-        lte(contactSubmissions.createdAt, cutoff),
-      ))
-      .returning({ id: contactSubmissions.id });
-    return deleted.length > 0;
+    return await db.transaction(async (tx) => {
+      const deleted = await tx
+        .delete(contactSubmissions)
+        .where(and(
+          eq(contactSubmissions.id, id),
+          eq(contactSubmissions.legalHold, false),
+          lte(contactSubmissions.createdAt, cutoff),
+        ))
+        .returning({ id: contactSubmissions.id });
+      if (deleted.length > 0 && audit) {
+        await this.insertRetentionAuditEvent(tx, {
+          eventType: "contact_deleted",
+          targetType: "contact_submission",
+          targetId: id,
+          actorId: audit.actorId,
+          runId: audit.runId,
+          dryRun: audit.dryRun,
+          details: { referenceTime: referenceTime.toISOString() },
+        });
+      }
+      return deleted.length > 0;
+    });
+  }
+
+  async getRetentionTargets(): Promise<{ contacts: RetentionTargetContact[]; users: RetentionTargetUser[] }> {
+    const [contacts, userTargets] = await Promise.all([
+      db.select({
+        id: contactSubmissions.id,
+        createdAt: contactSubmissions.createdAt,
+        legalHold: contactSubmissions.legalHold,
+      }).from(contactSubmissions),
+      db.select({
+        id: users.id,
+        accessRemovedAt: users.accessRemovedAt,
+        retentionActionAt: users.retentionActionAt,
+        legalHold: users.legalHold,
+      }).from(users),
+    ]);
+    return { contacts, users: userTargets };
+  }
+
+  async createRetentionRun(input: {
+    requestedBy: string;
+    referenceTime: Date;
+    dryRun: boolean;
+    status: string;
+    candidateFingerprint: string;
+  }): Promise<RetentionRun> {
+    const [run] = await db.insert(retentionRuns).values(input).returning();
+    return run;
+  }
+
+  async updateRetentionRun(
+    id: string,
+    update: Partial<{
+      status: string;
+      contactEligible: number;
+      usersEligible: number;
+      contactsDeleted: number;
+      usersAnonymized: number;
+      blockedByLegalHold: number;
+      skipped: number;
+      failureCode: string | null;
+      completedAt: Date;
+    }>,
+  ): Promise<RetentionRun | undefined> {
+    const [run] = await db.update(retentionRuns).set(update).where(eq(retentionRuns.id, id)).returning();
+    return run;
+  }
+
+  async getRetentionRun(id: string): Promise<RetentionRun | undefined> {
+    const [run] = await db.select().from(retentionRuns).where(eq(retentionRuns.id, id));
+    return run;
+  }
+
+  async getRecentRetentionRuns(limit = 20): Promise<RetentionRun[]> {
+    return await db.select().from(retentionRuns).orderBy(desc(retentionRuns.createdAt)).limit(Math.min(Math.max(limit, 1), 100));
+  }
+
+  async getRecentRetentionAuditEvents(limit = 50): Promise<RetentionAuditEvent[]> {
+    return await db
+      .select()
+      .from(retentionAuditEvents)
+      .orderBy(desc(retentionAuditEvents.createdAt))
+      .limit(Math.min(Math.max(limit, 1), 100));
+  }
+
+  async recordRetentionAuditEvent(input: {
+    eventType: RetentionAuditEventType;
+    targetType: string;
+    targetId?: string;
+    actorId: string;
+    runId?: string;
+    dryRun?: boolean;
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    await db.insert(retentionAuditEvents).values({
+      ...input,
+      targetId: input.targetId ?? null,
+      runId: input.runId ?? null,
+      dryRun: input.dryRun ?? false,
+      details: input.details ?? {},
+    });
+  }
+
+  private async insertRetentionAuditEvent(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    input: {
+      eventType: RetentionAuditEventType;
+      targetType: string;
+      targetId?: string;
+      actorId: string;
+      runId?: string;
+      dryRun?: boolean;
+      details?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await tx.insert(retentionAuditEvents).values({
+      ...input,
+      targetId: input.targetId ?? null,
+      runId: input.runId ?? null,
+      dryRun: input.dryRun ?? false,
+      details: input.details ?? {},
+    });
   }
 
   // Stats

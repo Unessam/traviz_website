@@ -2,6 +2,35 @@ import type { ContactSubmission, User } from "@shared/schema";
 
 export const CONTACT_RETENTION_MONTHS = 12;
 export const OAUTH_USER_RETENTION_DAYS = 90;
+export const RETENTION_APPLY_CONFIRMATION = "APPLY_RETENTION";
+
+export type RetentionAuditEventType =
+  | "user_access_removed"
+  | "user_legal_hold_changed"
+  | "contact_legal_hold_changed"
+  | "contact_deleted"
+  | "user_anonymized"
+  | "retention_dry_run"
+  | "retention_run_failed";
+
+export interface RetentionAuditContext {
+  actorId: string;
+  runId?: string;
+  dryRun?: boolean;
+}
+
+export interface RetentionTargetContact {
+  id: string;
+  createdAt: Date | null;
+  legalHold: boolean;
+}
+
+export interface RetentionTargetUser {
+  id: string;
+  accessRemovedAt: Date | null;
+  retentionActionAt: Date | null;
+  legalHold: boolean;
+}
 
 export type RetentionDecisionStatus =
   | "eligible"

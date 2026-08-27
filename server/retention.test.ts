@@ -3,6 +3,7 @@ import test from "node:test";
 import type {
   ContactSubmission,
   InsertContactSubmission,
+  RetentionRun,
   User,
 } from "@shared/schema";
 import { contactFormSubmissionSchema } from "@shared/schema";
@@ -21,6 +22,10 @@ import {
   persistContactSubmissionAndNotify,
   type ContactSubmissionStore,
 } from "./contactSubmission";
+import {
+  executeRetentionRun,
+  getRetentionPreview,
+} from "./retentionService";
 
 const referenceTime = new Date("2026-08-26T12:00:00.000Z");
 
@@ -212,4 +217,205 @@ test("missing Postmark configuration is a safe no-op", async () => {
   const result = await notifier.notify(contact());
 
   assert.deepEqual(result, { sent: false, status: "not_configured" });
+});
+
+class MemoryRetentionStore {
+  contacts: ContactSubmission[];
+  users: User[];
+  runs = new Map<string, RetentionRun>();
+  events: Array<{ eventType: string; runId?: string }> = [];
+  private nextRunId = 1;
+
+  constructor(contacts: ContactSubmission[], users: User[]) {
+    this.contacts = contacts;
+    this.users = users;
+  }
+
+  async getRetentionTargets() {
+    return {
+      contacts: this.contacts.map(({ id, createdAt, legalHold }) => ({ id, createdAt, legalHold })),
+      users: this.users.map(({ id, accessRemovedAt, retentionActionAt, legalHold }) => ({
+        id,
+        accessRemovedAt,
+        retentionActionAt,
+        legalHold,
+      })),
+    };
+  }
+
+  async createRetentionRun(input: {
+    requestedBy: string;
+    referenceTime: Date;
+    dryRun: boolean;
+    status: string;
+  }): Promise<RetentionRun> {
+    const run: RetentionRun = {
+      id: `run-${this.nextRunId++}`,
+      ...input,
+      candidateFingerprint: input.candidateFingerprint,
+      contactEligible: 0,
+      usersEligible: 0,
+      contactsDeleted: 0,
+      usersAnonymized: 0,
+      blockedByLegalHold: 0,
+      skipped: 0,
+      failureCode: null,
+      createdAt: input.referenceTime,
+      completedAt: null,
+    };
+    this.runs.set(run.id, run);
+    return run;
+  }
+
+  async updateRetentionRun(id: string, update: Record<string, unknown>): Promise<RetentionRun | undefined> {
+    const run = this.runs.get(id);
+    if (!run) return undefined;
+    const updated = { ...run, ...update } as RetentionRun;
+    this.runs.set(id, updated);
+    return updated;
+  }
+
+  async getRetentionRun(id: string): Promise<RetentionRun | undefined> {
+    return this.runs.get(id);
+  }
+
+  async deleteEligibleContactSubmission(id: string): Promise<boolean> {
+    const before = this.contacts.length;
+    this.contacts = this.contacts.filter((submission) => submission.id !== id);
+    return this.contacts.length < before;
+  }
+
+  async anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined> {
+    const target = this.users.find((candidate) => candidate.id === id);
+    if (!target) return undefined;
+    target.email = null;
+    target.firstName = null;
+    target.lastName = null;
+    target.profileImageUrl = null;
+    target.retentionActionAt = referenceTime;
+    return target;
+  }
+
+  async recordRetentionAuditEvent(input: { eventType: string; runId?: string }): Promise<void> {
+    this.events.push(input);
+  }
+}
+
+test("a dry retention run is observable but never mutates eligible records", async () => {
+  const store = new MemoryRetentionStore(
+    [contact(), contact({ id: "held-contact", legalHold: true })],
+    [user(), user({ id: "anonymized", retentionActionAt: referenceTime })],
+  );
+
+  const preview = await getRetentionPreview(store, referenceTime);
+  const run = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+
+  assert.deepEqual(preview.contacts, {
+    total: 2,
+    eligible: 1,
+    legalHold: 1,
+    notDue: 0,
+    missingTimestamp: 0,
+  });
+  assert.equal(preview.users.eligible, 1);
+  assert.equal(preview.users.alreadyAnonymized, 1);
+  assert.equal(run.status, "completed");
+  assert.equal(run.contactsDeleted, 0);
+  assert.equal(run.usersAnonymized, 0);
+  assert.equal(store.contacts.length, 2);
+  assert.equal(store.users[0].email, "synthetic@example.test");
+  assert.equal(store.events[0].eventType, "retention_dry_run");
+});
+
+test("a live retention run requires activation and a matching completed dry run", async () => {
+  const store = new MemoryRetentionStore([contact()], [user()]);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    const liveRun = await executeRetentionRun(store, {
+      requestedBy: "staff-1",
+      referenceTime,
+      dryRun: false,
+      previewRunId: dryRun.id,
+    });
+
+    assert.equal(liveRun.status, "completed");
+    assert.equal(liveRun.contactsDeleted, 1);
+    assert.equal(liveRun.usersAnonymized, 1);
+    assert.equal(store.contacts.length, 0);
+    assert.equal(store.users[0].email, null);
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+test("a live retention run rejects candidate changes after dry-run review", async () => {
+  const store = new MemoryRetentionStore([contact()], []);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  store.users.push(user());
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    await assert.rejects(
+      () => executeRetentionRun(store, {
+        requestedBy: "staff-1",
+        referenceTime,
+        dryRun: false,
+        previewRunId: dryRun.id,
+      }),
+      /DRY_RUN_REVIEW_STALE/,
+    );
+    assert.equal(store.contacts.length, 1);
+    assert.equal(store.users[0].email, "synthetic@example.test");
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+test("a legacy dry run without a candidate snapshot cannot authorize live actions", async () => {
+  const store = new MemoryRetentionStore([contact()], [user()]);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  const legacyRun = store.runs.get(dryRun.id);
+  if (!legacyRun) throw new Error("Expected a stored dry run");
+  store.runs.set(dryRun.id, { ...legacyRun, candidateFingerprint: "legacy-unreviewable" });
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    await assert.rejects(
+      () => executeRetentionRun(store, {
+        requestedBy: "staff-1",
+        referenceTime,
+        dryRun: false,
+        previewRunId: dryRun.id,
+      }),
+      /DRY_RUN_REVIEW_STALE/,
+    );
+    assert.equal(store.contacts.length, 1);
+    assert.equal(store.users[0].email, "synthetic@example.test");
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
 });
