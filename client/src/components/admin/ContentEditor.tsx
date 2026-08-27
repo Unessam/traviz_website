@@ -156,7 +156,7 @@ export default function ContentEditor() {
   const { data: stats } = useQuery<Stats>({ queryKey: ["/api/stats"] });
   const { data: heroContent } = useQuery<HeroContent>({ queryKey: ["/api/hero"] });
   const { data: aboutContent } = useQuery<AboutContent>({ queryKey: ["/api/about"] });
-  const { data: contactSubmissions = [] } = useQuery<ContactSubmission[]>({ 
+  const { data: contactSubmissions = [], isSuccess: canViewContactSubmissions } = useQuery<ContactSubmission[]>({
     queryKey: ["/api/admin/contact-submissions"] 
   });
 
@@ -1074,7 +1074,7 @@ export default function ContentEditor() {
         </Card>
 
         {/* Contact Submissions */}
-        <Card>
+        {canViewContactSubmissions && <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <MessageSquare className="w-5 h-5 mr-2" />
@@ -1131,7 +1131,7 @@ export default function ContentEditor() {
               ))
             )}
           </CardContent>
-        </Card>
+        </Card>}
       </div>
     </div>
   );

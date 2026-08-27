@@ -53,12 +53,8 @@ export async function registerRoutes(
   }).strict();
   const legalHoldSchema = z.object({
     legalHold: z.boolean(),
-    reason: z.string().trim().min(1).max(2000).optional(),
-  }).strict().superRefine((value, context) => {
-    if (value.legalHold && !value.reason) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["reason"], message: "A reason is required when placing a legal hold" });
-    }
-  });
+    reason: z.string().trim().min(1).max(2000),
+  }).strict();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {

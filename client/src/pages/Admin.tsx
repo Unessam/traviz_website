@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import ContentEditor from "@/components/admin/ContentEditor";
+import RetentionConsole from "@/components/admin/RetentionConsole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -219,6 +220,9 @@ export default function Admin() {
         </div>
 
         <ContentEditor />
+        <div className="mt-12">
+          <RetentionConsole />
+        </div>
       </div>
     </div>
   );

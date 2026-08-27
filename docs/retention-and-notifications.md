@@ -10,7 +10,7 @@ procedure for the contact-notification boundary.
 - OAuth users are eligible for anonymisation once `accessRemovedAt` is at least
   90 days before an explicitly supplied reference time.
 - A legal hold always makes the corresponding record ineligible, regardless of
-  age. Holds carry an optional reason for review.
+  age. Adding or releasing a hold requires an operator reason for review.
 - Missing lifecycle timestamps are ineligible. OAuth session expiry is not used
   as an access-removal signal.
 
@@ -68,6 +68,13 @@ Authorised staff use only these protected routes:
 - `POST /api/admin/retention/runs` creates a dry run or an approved execution.
 - `GET /api/admin/retention/runs` shows recent run status and totals.
 - `GET /api/admin/retention/audit-events` shows the non-sensitive audit trail.
+
+The admin dashboard exposes these operations in a Retention Operations console.
+The console is rendered only after a protected retention request succeeds, so
+staff outside the allowlist see neither the controls nor retained contact data.
+Operators select a completed dry run before entering the explicit live-action
+confirmation; the server remains authoritative for authorisation, activation,
+snapshot freshness, and all mutation checks.
 
 The routes intentionally return only lifecycle and legal-hold fields for
 individual operations; they do not expose contact message contents.
