@@ -47,6 +47,56 @@ Notification failures emit only a fixed reason such as `provider_error`.
 Form contents, addresses, provider error objects, and credentials are never
 written to logs.
 
+### Postmark setup and staged verification
+
+The deployment owner and the Postmark account owner must complete these steps
+together:
+
+1. In Postmark, confirm the account is active and verify the exact sender
+   address or its sending domain. The value configured in
+   `POSTMARK_FROM_EMAIL` must be covered by that verified identity.
+2. Set `POSTMARK_API_KEY`, `POSTMARK_FROM_EMAIL`, and `POSTMARK_TO_EMAIL` in the
+   deployment environment. Use a Server API token for the intended Postmark
+   server, not an account token. Never put these values in source control,
+   tickets, chat, commands that are recorded, or application logs.
+3. Confirm the recipient in `POSTMARK_TO_EMAIL` is the approved operational
+   owner for contact enquiries. All three values are required. A completely
+   absent configuration intentionally disables delivery; partial, blank, or
+   malformed configuration is treated as an error and no provider call occurs.
+4. In an approved staging deployment connected to a non-production database,
+   submit one clearly labelled synthetic contact request. Confirm the request
+   returns success and the database record exists before checking email.
+5. In Postmark Activity, require an accepted message with the expected sender,
+   recipient, and a Delivered event. A provider `OK` response alone is not
+   sufficient: an account deactivated after inactivity can accept an API call
+   without recording or delivering it. Reactivate the account and repeat the
+   staged check if Activity is missing.
+6. Remove the synthetic database record according to the approved test-data
+   procedure. Do not copy its body into logs or incident notes.
+
+The contact-enquiries owner monitors the approved inbox. The deployment owner
+maintains the three environment values, and the Postmark account owner maintains
+sender verification, server access, and account activation. Record these named
+owners in the organisation's private operations system rather than this
+repository.
+
+### Notification failure response
+
+- `configuration_error` means configuration is partial, blank, or contains an
+  invalid sender or recipient address. Compare deployment variable names and
+  Postmark verification status without printing their values.
+- `provider_error` means Postmark rejected or could not complete the API call.
+  Confirm Postmark service health, account activation, server-token ownership,
+  sender verification, and Activity using Postmark's private console. Do not
+  copy provider payloads into application logs.
+- In either case, the contact submission remains stored and the public request
+  still succeeds. Review the protected contact-submissions view to recover the
+  enquiry. Do not manually resubmit a real person's message as a staged test.
+- If failures continue, rotate the Server API token through the deployment
+  secret manager, redeploy, and repeat only the synthetic staged check. Token
+  rotation and sender/recipient changes require approval from the corresponding
+  owners.
+
 ## Staff authorization
 
 The following endpoints require both a valid Replit session and a retention

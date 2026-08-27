@@ -1,5 +1,6 @@
 import { Client } from "postmark";
 import type { ContactSubmission } from "@shared/schema";
+import { z } from "zod";
 
 export interface ContactNotificationClient {
   sendEmail(message: {
@@ -17,7 +18,7 @@ export interface ContactNotificationLogger {
 
 export type ContactNotificationResult =
   | { sent: true; status: "sent" }
-  | { sent: false; status: "not_configured" | "delivery_failed" };
+  | { sent: false; status: "not_configured" | "configuration_invalid" | "delivery_failed" };
 
 export interface ContactNotifier {
   notify(submission: ContactSubmission): Promise<ContactNotificationResult>;
@@ -37,6 +38,13 @@ const defaultLogger: ContactNotificationLogger = {
     console.error(message, context);
   },
 };
+
+const emailAddressSchema = z.string().trim().email().max(320);
+
+function configuredValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -85,12 +93,13 @@ function buildNotification(submission: ContactSubmission, fromEmail: string, toE
 
 export function createContactNotifier(options: ContactNotifierOptions = {}): ContactNotifier {
   const env = options.env ?? process.env;
-  const apiKey = options.apiKey ?? env.POSTMARK_API_KEY;
-  const fromEmail = options.fromEmail ?? env.POSTMARK_FROM_EMAIL;
-  const toEmail = options.toEmail ?? env.POSTMARK_TO_EMAIL;
+  const apiKey = configuredValue(options.apiKey ?? env.POSTMARK_API_KEY);
+  const fromEmail = configuredValue(options.fromEmail ?? env.POSTMARK_FROM_EMAIL);
+  const toEmail = configuredValue(options.toEmail ?? env.POSTMARK_TO_EMAIL);
   const logger = options.logger ?? defaultLogger;
+  const hasAnyConfiguration = Boolean(apiKey || fromEmail || toEmail || options.client);
 
-  if (!fromEmail || !toEmail || (!options.client && !apiKey)) {
+  if (!hasAnyConfiguration) {
     return {
       async notify() {
         return { sent: false, status: "not_configured" };
@@ -98,12 +107,27 @@ export function createContactNotifier(options: ContactNotifierOptions = {}): Con
     };
   }
 
+  const parsedFromEmail = emailAddressSchema.safeParse(fromEmail);
+  const parsedToEmail = emailAddressSchema.safeParse(toEmail);
+  if (!parsedFromEmail.success || !parsedToEmail.success || (!options.client && !apiKey)) {
+    logger.error("[contact-notification] configuration invalid", {
+      reason: "configuration_error",
+    });
+    return {
+      async notify() {
+        return { sent: false, status: "configuration_invalid" };
+      },
+    };
+  }
+
+  const approvedFromEmail = parsedFromEmail.data;
+  const approvedToEmail = parsedToEmail.data;
   const client = options.client ?? new Client(apiKey!);
 
   return {
     async notify(submission) {
       try {
-        await client.sendEmail(buildNotification(submission, fromEmail, toEmail));
+        await client.sendEmail(buildNotification(submission, approvedFromEmail, approvedToEmail));
         return { sent: true, status: "sent" };
       } catch {
         logger.error("[contact-notification] delivery failed", {

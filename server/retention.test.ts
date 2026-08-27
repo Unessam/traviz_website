@@ -215,10 +215,77 @@ test("notification failure preserves the stored contact and logs no sensitive de
 });
 
 test("missing Postmark configuration is a safe no-op", async () => {
-  const notifier = createContactNotifier({ env: {} });
+  const logs: unknown[] = [];
+  const notifier = createContactNotifier({
+    env: {},
+    logger: { error: (...args) => logs.push(args) },
+  });
   const result = await notifier.notify(contact());
 
   assert.deepEqual(result, { sent: false, status: "not_configured" });
+  assert.deepEqual(logs, []);
+});
+
+test("partial or invalid Postmark configuration fails safely with fixed diagnostics", async () => {
+  const cases = [
+    { env: { POSTMARK_API_KEY: "synthetic-key" } },
+    {
+      env: {
+        POSTMARK_API_KEY: "synthetic-key",
+        POSTMARK_FROM_EMAIL: "not-an-address",
+        POSTMARK_TO_EMAIL: "inbox@example.test",
+      },
+    },
+    {
+      env: {
+        POSTMARK_API_KEY: "   ",
+        POSTMARK_FROM_EMAIL: "noreply@example.test",
+        POSTMARK_TO_EMAIL: "inbox@example.test",
+      },
+    },
+  ];
+
+  for (const testCase of cases) {
+    const logs: Array<{ message: string; context?: Record<string, unknown> }> = [];
+    const notifier = createContactNotifier({
+      env: testCase.env,
+      logger: {
+        error(message, context) {
+          logs.push({ message, context });
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await notifier.notify(contact()),
+      { sent: false, status: "configuration_invalid" },
+    );
+    assert.deepEqual(logs, [{
+      message: "[contact-notification] configuration invalid",
+      context: { reason: "configuration_error" },
+    }]);
+    assert.doesNotMatch(JSON.stringify(logs), /synthetic-key|not-an-address|inbox@example\.test/);
+  }
+});
+
+test("configured notifications use trimmed approved identities", async () => {
+  const messages: Array<Record<string, string>> = [];
+  const notifier = createContactNotifier({
+    apiKey: " synthetic-key ",
+    fromEmail: " noreply@example.test ",
+    toEmail: " inbox@example.test ",
+    client: {
+      async sendEmail(message) {
+        messages.push(message);
+        return { ErrorCode: 0, Message: "OK" };
+      },
+    },
+  });
+
+  assert.deepEqual(await notifier.notify(contact()), { sent: true, status: "sent" });
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].From, "noreply@example.test");
+  assert.equal(messages[0].To, "inbox@example.test");
 });
 
 async function withContactHttpServer(
