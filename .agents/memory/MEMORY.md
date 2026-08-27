@@ -2,3 +2,4 @@
 - [Retention approval snapshots](retention-approval-snapshots.md) — live retention actions must reject changed or legacy dry-run candidate sets.
 - [Playwright on Nix](playwright-nix-runtime.md) — local Chromium needs explicit shared-library packages in the Replit Nix environment.
 - [Development database binding](development-database-binding.md) — migrations must use DATABASE_URL; NEON_DATABASE_URL may target a different database.
+- [GitHub branch publishing](github-branch-publishing.md) — GitHub integration access and Git HTTPS push authentication are separate in the Replit workspace.
