@@ -1,0 +1,1 @@
+- [Postmark inactive-account behavior](postmark-inactive-account.md) — accepted sends may vanish from Activity when an inactivity-deactivated account needs reactivation.
