@@ -35,6 +35,9 @@ export interface RouteDependencies {
   contactNotifier?: ContactNotifier;
   storage?: typeof defaultStorage;
   setupAuth?: typeof setupAuth;
+  contactLogger?: {
+    error(event: string, context: { category: "storage_error" }): void;
+  };
 }
 
 export async function registerRoutes(
@@ -44,6 +47,7 @@ export async function registerRoutes(
   const contactNotifier = dependencies.contactNotifier ?? createContactNotifier();
   const storage = dependencies.storage ?? defaultStorage;
   const configureAuth = dependencies.setupAuth ?? setupAuth;
+  const contactLogger = dependencies.contactLogger ?? console;
 
   // Auth middleware
   await configureAuth(app);
@@ -165,19 +169,25 @@ export async function registerRoutes(
 
   // Contact form submission
   app.post('/api/contact', async (req, res) => {
+    const validation = contactFormSubmissionSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ message: "Invalid form data" });
+      return;
+    }
+
     try {
-      const validatedData = contactFormSubmissionSchema.parse(req.body);
-      
       const submission = await persistContactSubmissionAndNotify(
-        validatedData,
+        validation.data,
         storage,
         contactNotifier,
       );
       
       res.status(201).json({ message: "Contact form submitted successfully", id: submission.id });
-    } catch (error) {
-      console.error("Error submitting contact form:", error);
-      res.status(400).json({ message: "Invalid form data" });
+    } catch {
+      contactLogger.error("[contact-submission] persistence failed", {
+        category: "storage_error",
+      });
+      res.status(503).json({ message: "Unable to submit contact form" });
     }
   });
 

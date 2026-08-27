@@ -221,6 +221,105 @@ test("missing Postmark configuration is a safe no-op", async () => {
   assert.deepEqual(result, { sent: false, status: "not_configured" });
 });
 
+async function withContactHttpServer(
+  createContactSubmission: (submission: InsertContactSubmission) => Promise<ContactSubmission>,
+  run: (
+    baseUrl: string,
+    logs: Array<{ event: string; context: { category: "storage_error" } }>,
+  ) => Promise<void>,
+) {
+  const logs: Array<{ event: string; context: { category: "storage_error" } }> = [];
+  const app = express();
+  app.use(express.json());
+  const server = await registerRoutes(app, {
+    setupAuth: async () => {},
+    storage: { createContactSubmission } as typeof import("./storage").storage,
+    contactNotifier: { notify: async () => ({ sent: true, status: "sent" }) },
+    contactLogger: {
+      error(event, context) {
+        logs.push({ event, context });
+      },
+    },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected TCP test server");
+
+  try {
+    await run(`http://127.0.0.1:${address.port}`, logs);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+test("contact validation failures return a safe client response without route diagnostics", async () => {
+  await withContactHttpServer(
+    async () => {
+      throw new Error("Storage must not be called");
+    },
+    async (baseUrl, logs) => {
+      const response = await fetch(`${baseUrl}/api/contact?credential=QUERY_SECRET`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "PRIVATE_NAME",
+          email: "private-address@example.test",
+          company: "PRIVATE_COMPANY",
+        }),
+      });
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), { message: "Invalid form data" });
+      assert.deepEqual(logs, []);
+    },
+  );
+});
+
+test("contact storage failures log only fixed safe diagnostics", async () => {
+  const submitted = {
+    name: "PRIVATE_NAME",
+    email: "private-address@example.test",
+    company: "PRIVATE_COMPANY",
+    message: "PRIVATE_MESSAGE",
+  };
+  const forbidden = [
+    ...Object.values(submitted),
+    "QUERY_SECRET",
+    "DATABASE_SECRET",
+    "postgres://credential:password@database.example/private",
+    "insert into contact_submissions",
+  ];
+
+  await withContactHttpServer(
+    async () => {
+      throw new Error(
+        "DATABASE_SECRET postgres://credential:password@database.example/private "
+        + "insert into contact_submissions values (private-address@example.test)",
+      );
+    },
+    async (baseUrl, logs) => {
+      const response = await fetch(`${baseUrl}/api/contact?credential=QUERY_SECRET`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(submitted),
+      });
+
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { message: "Unable to submit contact form" });
+      assert.deepEqual(logs, [{
+        event: "[contact-submission] persistence failed",
+        context: { category: "storage_error" },
+      }]);
+
+      const serialized = JSON.stringify(logs);
+      for (const sensitiveValue of forbidden) {
+        assert.doesNotMatch(serialized, new RegExp(sensitiveValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      }
+    },
+  );
+});
+
 class MemoryRetentionStore {
   contacts: ContactSubmission[];
   users: User[];
