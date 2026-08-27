@@ -296,6 +296,23 @@ export default function ContentEditor() {
     },
   });
 
+  const retryNotificationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("POST", `/api/admin/contact-submissions/${id}/notification-retry`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/contact-submissions"] });
+      toast({ title: "Notification attempted", description: "Delivery status has been updated." });
+    },
+    onError: () => {
+      toast({
+        title: "Retry unavailable",
+        description: "The notification is already being sent, was delivered, or reached its retry limit.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (item: any, type: string) => {
     setEditingItem(item);
     setEditingType(type);
@@ -1105,6 +1122,9 @@ export default function ContentEditor() {
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
+                      <Badge variant={submission.notificationStatus === "sent" ? "secondary" : "destructive"}>
+                        Notification: {submission.notificationStatus}
+                      </Badge>
                       <Badge variant={submission.isRead ? "secondary" : "default"}>
                         {submission.isRead ? "Read" : "New"}
                       </Badge>
@@ -1118,6 +1138,17 @@ export default function ContentEditor() {
                           Mark Read
                         </Button>
                       )}
+                      {["pending", "failed"].includes(submission.notificationStatus) && submission.notificationAttempts < 3 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={retryNotificationMutation.isPending}
+                          onClick={() => retryNotificationMutation.mutate(submission.id)}
+                          data-testid={`button-retry-notification-${submission.id}`}
+                        >
+                          {submission.notificationStatus === "pending" ? "Send notification" : "Retry notification"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm" data-testid={`submission-message-${submission.id}`}>
@@ -1127,6 +1158,15 @@ export default function ContentEditor() {
                     <Calendar className="w-3 h-3 inline mr-1" />
                     {submission.createdAt ? new Date(submission.createdAt).toLocaleDateString() : 'No date'}
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Delivery attempts: {submission.notificationAttempts}/3
+                    {submission.notificationFailureCode ? ` · ${submission.notificationFailureCode}` : ""}
+                  </p>
+                  {submission.notificationLastAttemptAt && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Last delivery attempt: {new Date(submission.notificationLastAttemptAt).toLocaleString()}
+                    </p>
+                  )}
                 </div>
               ))
             )}

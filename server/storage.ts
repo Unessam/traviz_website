@@ -47,7 +47,11 @@ import {
   getOAuthAccessRestorationPatch,
   getOAuthUserAnonymisationCutoff,
 } from "./retention";
-import { and, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  CONTACT_NOTIFICATION_CLAIM_LEASE_MS,
+  type ContactNotificationFailureCode,
+} from "./contactSubmission";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -104,6 +108,8 @@ export interface IStorage {
   // Contact submissions
   getContactSubmissions(): Promise<ContactSubmission[]>;
   createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission>;
+  claimContactNotificationAttempt(id: string, claimToken: string, attemptedAt: Date, maxAttempts: number): Promise<ContactSubmission | undefined>;
+  completeContactNotificationAttempt(id: string, claimToken: string, result: { status: "sent" | "failed"; failureCode: ContactNotificationFailureCode | null }): Promise<ContactSubmission | undefined>;
   markContactSubmissionAsRead(id: string): Promise<void>;
   setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string, audit?: RetentionAuditContext): Promise<ContactSubmission | undefined>;
   deleteEligibleContactSubmission(id: string, referenceTime: Date, audit?: RetentionAuditContext): Promise<boolean>;
@@ -468,9 +474,69 @@ export class DatabaseStorage implements IStorage {
         ...submission,
         legalHold: false,
         legalHoldReason: null,
+        notificationStatus: "pending",
+        notificationAttempts: 0,
+        notificationLastAttemptAt: null,
+        notificationFailureCode: null,
+        notificationClaimToken: null,
       })
       .returning();
     return created;
+  }
+
+  async claimContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    attemptedAt: Date,
+    maxAttempts: number,
+  ): Promise<ContactSubmission | undefined> {
+    const [claimed] = await db
+      .update(contactSubmissions)
+      .set({
+        notificationStatus: "sending",
+        notificationAttempts: sql`${contactSubmissions.notificationAttempts} + 1`,
+        notificationLastAttemptAt: attemptedAt,
+        notificationFailureCode: null,
+        notificationClaimToken: claimToken,
+      })
+      .where(and(
+        eq(contactSubmissions.id, id),
+        lt(contactSubmissions.notificationAttempts, maxAttempts),
+        or(
+          eq(contactSubmissions.notificationStatus, "pending"),
+          eq(contactSubmissions.notificationStatus, "failed"),
+          and(
+            eq(contactSubmissions.notificationStatus, "sending"),
+            lte(
+              contactSubmissions.notificationLastAttemptAt,
+              new Date(attemptedAt.getTime() - CONTACT_NOTIFICATION_CLAIM_LEASE_MS),
+            ),
+          ),
+        ),
+      ))
+      .returning();
+    return claimed;
+  }
+
+  async completeContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    result: { status: "sent" | "failed"; failureCode: ContactNotificationFailureCode | null },
+  ): Promise<ContactSubmission | undefined> {
+    const [completed] = await db
+      .update(contactSubmissions)
+      .set({
+        notificationStatus: result.status,
+        notificationFailureCode: result.failureCode,
+        notificationClaimToken: null,
+      })
+      .where(and(
+        eq(contactSubmissions.id, id),
+        eq(contactSubmissions.notificationStatus, "sending"),
+        eq(contactSubmissions.notificationClaimToken, claimToken),
+      ))
+      .returning();
+    return completed;
   }
 
   async markContactSubmissionAsRead(id: string): Promise<void> {

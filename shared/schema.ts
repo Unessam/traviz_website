@@ -146,6 +146,11 @@ export const contactSubmissions = pgTable("contact_submissions", {
   isRead: boolean("is_read").default(false),
   legalHold: boolean("legal_hold").notNull().default(false),
   legalHoldReason: text("legal_hold_reason"),
+  notificationStatus: varchar("notification_status").notNull().default("pending"),
+  notificationAttempts: integer("notification_attempts").notNull().default(0),
+  notificationLastAttemptAt: timestamp("notification_last_attempt_at"),
+  notificationFailureCode: varchar("notification_failure_code"),
+  notificationClaimToken: varchar("notification_claim_token"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

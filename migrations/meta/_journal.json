@@ -15,6 +15,13 @@
       "when": 1787817560925,
       "tag": "0001_classy_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787821618360,
+      "tag": "0002_large_nightshade",
+      "breakpoints": true
     }
   ]
 }

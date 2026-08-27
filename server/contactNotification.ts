@@ -2,6 +2,8 @@ import { Client } from "postmark";
 import type { ContactSubmission } from "@shared/schema";
 import { z } from "zod";
 
+export const POSTMARK_REQUEST_TIMEOUT_SECONDS = 30;
+
 export interface ContactNotificationClient {
   sendEmail(message: {
     From: string;
@@ -122,7 +124,9 @@ export function createContactNotifier(options: ContactNotifierOptions = {}): Con
 
   const approvedFromEmail = parsedFromEmail.data;
   const approvedToEmail = parsedToEmail.data;
-  const client = options.client ?? new Client(apiKey!);
+  const client = options.client ?? new Client(apiKey!, {
+    timeout: POSTMARK_REQUEST_TIMEOUT_SECONDS,
+  });
 
   return {
     async notify(submission) {

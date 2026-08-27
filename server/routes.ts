@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage as defaultStorage } from "./storage";
 import { setupAuth, isAuthenticated, isRetentionAuthorized } from "./replitAuth";
 import { createContactNotifier, type ContactNotifier } from "./contactNotification";
-import { persistContactSubmissionAndNotify } from "./contactSubmission";
+import { attemptContactNotification, persistContactSubmissionAndNotify } from "./contactSubmission";
 import { 
   insertHeroContentSchema,
   insertServiceSchema,
@@ -205,10 +205,33 @@ export async function registerRoutes(
   app.get('/api/admin/contact-submissions', ...retentionAuth, async (req, res) => {
     try {
       const submissions = await storage.getContactSubmissions();
-      res.json(submissions);
+      res.json(submissions.map(({ notificationClaimToken: _claimToken, ...submission }) => submission));
     } catch (error) {
       console.error("Error fetching contact submissions:", error);
       res.status(500).json({ message: "Failed to fetch contact submissions" });
+    }
+  });
+
+  app.post('/api/admin/contact-submissions/:id/notification-retry', ...retentionAuth, async (req, res) => {
+    try {
+      const id = getRouteId(req.params);
+      const submission = await attemptContactNotification(id, storage, contactNotifier);
+      if (!submission) {
+        res.status(409).json({ message: "Notification is not eligible for retry" });
+        return;
+      }
+      res.json({
+        id: submission.id,
+        notificationStatus: submission.notificationStatus,
+        notificationAttempts: submission.notificationAttempts,
+        notificationLastAttemptAt: submission.notificationLastAttemptAt,
+        notificationFailureCode: submission.notificationFailureCode,
+      });
+    } catch {
+      contactLogger.error("[contact-notification] retry failed", {
+        category: "storage_error",
+      });
+      res.status(503).json({ message: "Unable to retry notification" });
     }
   });
 

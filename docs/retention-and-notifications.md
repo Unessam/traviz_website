@@ -47,6 +47,19 @@ Notification failures emit only a fixed reason such as `provider_error`.
 Form contents, addresses, provider error objects, and credentials are never
 written to logs.
 
+Each stored submission is the source of truth for delivery. It records a
+`pending`, `sending`, `sent`, or `failed` status, an attempt count, the last
+attempt time, and a fixed failure classification. Initial delivery and manual
+retries use the same atomic claim operation. A submission can have at most
+three attempts; a concurrent or repeated request receives no claim and cannot
+start another send. If a process stops during provider I/O, its `sending`
+claim becomes eligible for recovery after five minutes. The production
+Postmark client has a 30-second request timeout, safely below that recovery
+window, and the private claim token prevents a stale completion from
+overwriting the recovered attempt. Delivery is bounded at-least-once: if a
+provider accepted a request but its response was lost, a later retry can
+produce a duplicate, but no more than three total attempts are permitted.
+
 ### Postmark setup and staged verification
 
 The deployment owner and the Postmark account owner must complete these steps
@@ -96,6 +109,11 @@ repository.
   secret manager, redeploy, and repeat only the synthetic staged check. Token
   rotation and sender/recipient changes require approval from the corresponding
   owners.
+- The contact-enquiries owner reviews failed records in the protected admin
+  view and may request a retry after configuration or Postmark health is
+  restored. After three attempts, the record remains failed and requires
+  manual inbox recovery and escalation to the deployment/Postmark owners.
+  Attempt counts are never reset through the HTTP API.
 
 ## Staff authorization
 
@@ -118,6 +136,8 @@ Authorised staff use only these protected routes:
 - `POST /api/admin/retention/runs` creates a dry run or an approved execution.
 - `GET /api/admin/retention/runs` shows recent run status and totals.
 - `GET /api/admin/retention/audit-events` shows the non-sensitive audit trail.
+- `POST /api/admin/contact-submissions/:id/notification-retry` atomically
+  retries an eligible failed notification and returns only delivery metadata.
 
 The admin dashboard exposes these operations in a Retention Operations console.
 The console is rendered only after a protected retention request succeeds, so

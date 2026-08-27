@@ -17,9 +17,13 @@ import {
 } from "./retention";
 import {
   createContactNotifier,
+  POSTMARK_REQUEST_TIMEOUT_SECONDS,
   type ContactNotificationClient,
 } from "./contactNotification";
 import {
+  attemptContactNotification,
+  CONTACT_NOTIFICATION_CLAIM_LEASE_MS,
+  MAX_CONTACT_NOTIFICATION_ATTEMPTS,
   persistContactSubmissionAndNotify,
   type ContactSubmissionStore,
 } from "./contactSubmission";
@@ -28,6 +32,7 @@ import {
   getRetentionPreview,
 } from "./retentionService";
 import { registerRoutes } from "./routes";
+import { shouldLogApiResponseBody } from "./apiRequestLogging";
 
 const referenceTime = new Date("2026-08-26T12:00:00.000Z");
 
@@ -41,6 +46,11 @@ function contact(overrides: Partial<ContactSubmission> = {}): ContactSubmission 
     isRead: false,
     legalHold: false,
     legalHoldReason: null,
+    notificationStatus: "pending",
+    notificationAttempts: 0,
+    notificationLastAttemptAt: null,
+    notificationFailureCode: null,
+    notificationClaimToken: null,
     createdAt: new Date("2025-08-26T12:00:00.000Z"),
     ...overrides,
   };
@@ -137,10 +147,50 @@ class MemoryContactStore implements ContactSubmissionStore {
       isRead: false,
       legalHold: false,
       legalHoldReason: null,
+      notificationStatus: "pending",
+      notificationAttempts: 0,
+      notificationLastAttemptAt: null,
+      notificationFailureCode: null,
+      notificationClaimToken: null,
       createdAt: referenceTime,
     };
     this.submissions.push(stored);
     return stored;
+  }
+
+  async claimContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    attemptedAt: Date,
+    maxAttempts: number,
+  ): Promise<ContactSubmission | undefined> {
+    const stored = this.submissions.find((candidate) => candidate.id === id);
+    if (
+      !stored
+      || !["pending", "failed"].includes(stored.notificationStatus)
+      || stored.notificationAttempts >= maxAttempts
+    ) return undefined;
+    stored.notificationStatus = "sending";
+    stored.notificationAttempts += 1;
+    stored.notificationLastAttemptAt = attemptedAt;
+    stored.notificationFailureCode = null;
+    stored.notificationClaimToken = claimToken;
+    return { ...stored };
+  }
+
+  async completeContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    result: { status: "sent" | "failed"; failureCode: "not_configured" | "configuration_invalid" | "provider_error" | "notifier_error" | null },
+  ): Promise<ContactSubmission | undefined> {
+    const stored = this.submissions.find((candidate) => candidate.id === id);
+    if (!stored || stored.notificationStatus !== "sending" || stored.notificationClaimToken !== claimToken) {
+      return undefined;
+    }
+    stored.notificationStatus = result.status;
+    stored.notificationFailureCode = result.failureCode;
+    stored.notificationClaimToken = null;
+    return { ...stored };
   }
 }
 
@@ -178,6 +228,8 @@ test("contact storage completes before a successful notification", async () => {
   assert.equal(stored.id, store.submissions[0].id);
   assert.equal(messages.length, 1);
   assert.equal(messages[0].From, "noreply@example.test");
+  assert.equal(stored.notificationStatus, "sent");
+  assert.equal(stored.notificationAttempts, 1);
 });
 
 test("notification failure preserves the stored contact and logs no sensitive details", async () => {
@@ -207,11 +259,82 @@ test("notification failure preserves the stored contact and logs no sensitive de
 
   assert.equal(store.submissions.length, 1);
   assert.equal(stored.email, "synthetic@example.test");
+  assert.equal(stored.notificationStatus, "failed");
+  assert.equal(stored.notificationFailureCode, "provider_error");
   assert.equal(logs.length, 1);
   const serializedLogs = JSON.stringify(logs);
   assert.match(serializedLogs, /provider_error/);
   assert.doesNotMatch(serializedLogs, /synthetic@example\.test/);
   assert.doesNotMatch(serializedLogs, /Synthetic message/);
+});
+
+test("a transient notification failure can be retried successfully", async () => {
+  const store = new MemoryContactStore();
+  let calls = 0;
+  const notifier = createContactNotifier({
+    client: {
+      async sendEmail() {
+        calls += 1;
+        if (calls === 1) throw new Error("temporary outage");
+      },
+    },
+    fromEmail: "noreply@example.test",
+    toEmail: "inbox@example.test",
+    logger: { error() {} },
+  });
+
+  const first = await persistContactSubmissionAndNotify(submissionInput(), store, notifier);
+  assert.equal(first.notificationStatus, "failed");
+  const retried = await attemptContactNotification(first.id, store, notifier);
+  assert.equal(retried?.notificationStatus, "sent");
+  assert.equal(retried?.notificationAttempts, 2);
+  assert.equal(calls, 2);
+});
+
+test("notification retries stop at the bounded attempt limit", async () => {
+  const store = new MemoryContactStore();
+  let calls = 0;
+  const notifier = createContactNotifier({
+    client: { async sendEmail() { calls += 1; throw new Error("outage"); } },
+    fromEmail: "noreply@example.test",
+    toEmail: "inbox@example.test",
+    logger: { error() {} },
+  });
+
+  const first = await persistContactSubmissionAndNotify(submissionInput(), store, notifier);
+  for (let attempt = 1; attempt < MAX_CONTACT_NOTIFICATION_ATTEMPTS; attempt += 1) {
+    await attemptContactNotification(first.id, store, notifier);
+  }
+  const exhausted = await attemptContactNotification(first.id, store, notifier);
+  assert.equal(exhausted, undefined);
+  assert.equal(store.submissions[0].notificationStatus, "failed");
+  assert.equal(store.submissions[0].notificationAttempts, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+  assert.equal(calls, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+});
+
+test("overlapping retry requests acquire only one notification claim", async () => {
+  const store = new MemoryContactStore();
+  const stored = await store.createContactSubmission(submissionInput());
+  stored.notificationStatus = "failed";
+  store.submissions[0].notificationStatus = "failed";
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  const notifier = {
+    async notify() {
+      calls += 1;
+      await gate;
+      return { sent: true as const, status: "sent" as const };
+    },
+  };
+
+  const first = attemptContactNotification(stored.id, store, notifier);
+  await new Promise((resolve) => setImmediate(resolve));
+  const duplicate = await attemptContactNotification(stored.id, store, notifier);
+  assert.equal(duplicate, undefined);
+  release();
+  assert.equal((await first)?.notificationStatus, "sent");
+  assert.equal(calls, 1);
 });
 
 test("missing Postmark configuration is a safe no-op", async () => {
@@ -286,6 +409,11 @@ test("configured notifications use trimmed approved identities", async () => {
   assert.equal(messages.length, 1);
   assert.equal(messages[0].From, "noreply@example.test");
   assert.equal(messages[0].To, "inbox@example.test");
+});
+
+test("the Postmark request timeout stays safely below the claim recovery lease", () => {
+  assert.equal(POSTMARK_REQUEST_TIMEOUT_SECONDS, 30);
+  assert.ok(POSTMARK_REQUEST_TIMEOUT_SECONDS * 1000 < CONTACT_NOTIFICATION_CLAIM_LEASE_MS);
 });
 
 async function withContactHttpServer(
@@ -385,6 +513,16 @@ test("contact storage failures log only fixed safe diagnostics", async () => {
       }
     },
   );
+});
+
+test("the API request logger never captures contact response bodies", () => {
+  assert.equal(shouldLogApiResponseBody("/api/contact"), false);
+  assert.equal(shouldLogApiResponseBody("/api/admin/contact-submissions"), false);
+  assert.equal(
+    shouldLogApiResponseBody("/api/admin/contact-submissions/contact-1/notification-retry"),
+    false,
+  );
+  assert.equal(shouldLogApiResponseBody("/api/admin/retention/runs"), true);
 });
 
 class MemoryRetentionStore {
@@ -608,7 +746,27 @@ async function withRetentionHttpServer(
   const retentionStore = {
     async getContactSubmissions() {
       calls.push("getContactSubmissions");
-      return [];
+      return [contact({ notificationClaimToken: "PRIVATE_CLAIM_TOKEN" })];
+    },
+    async claimContactNotificationAttempt(id: string, claimToken: string) {
+      calls.push("claimContactNotificationAttempt");
+      return contact({
+        id,
+        notificationStatus: "sending",
+        notificationAttempts: 1,
+        notificationClaimToken: claimToken,
+        notificationLastAttemptAt: referenceTime,
+      });
+    },
+    async completeContactNotificationAttempt(id: string, _claimToken: string, result: any) {
+      calls.push("completeContactNotificationAttempt");
+      return contact({
+        id,
+        notificationStatus: result.status,
+        notificationAttempts: 1,
+        notificationFailureCode: result.failureCode,
+        notificationLastAttemptAt: referenceTime,
+      });
     },
     async getRetentionTargets() {
       calls.push("getRetentionTargets");
@@ -694,6 +852,7 @@ test("retention routes reject authenticated staff outside the allowlist", async 
       const requests = [
         fetch(`${baseUrl}/api/admin/contact-submissions`, { headers }),
         fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/read`, { method: "PATCH", headers }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/notification-retry`, { method: "POST", headers }),
         fetch(`${baseUrl}/api/admin/retention/preview`, { headers }),
         fetch(`${baseUrl}/api/admin/retention/runs`, { headers }),
         fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
@@ -744,6 +903,22 @@ test("allowlisted staff can read retention data and execute only a dry run", asy
         fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
       ]);
       assert.deepEqual(readResponses.map((response) => response.status), [200, 200, 200, 200]);
+      const contactList = await readResponses[0].json();
+      assert.equal(contactList[0].notificationStatus, "pending");
+      assert.equal("notificationClaimToken" in contactList[0], false);
+
+      const retry = await fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/notification-retry`, {
+        method: "POST",
+        headers,
+      });
+      assert.equal(retry.status, 200);
+      assert.deepEqual(await retry.json(), {
+        id: "contact-1",
+        notificationStatus: "failed",
+        notificationAttempts: 1,
+        notificationLastAttemptAt: referenceTime.toISOString(),
+        notificationFailureCode: "not_configured",
+      });
 
       const dryRun = await fetch(`${baseUrl}/api/admin/retention/runs`, {
         method: "POST",
