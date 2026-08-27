@@ -1,2 +1,3 @@
 - [Postmark inactive-account behavior](postmark-inactive-account.md) — accepted sends may vanish from Activity when an inactivity-deactivated account needs reactivation.
 - [Retention approval snapshots](retention-approval-snapshots.md) — live retention actions must reject changed or legacy dry-run candidate sets.
+- [Playwright on Nix](playwright-nix-runtime.md) — local Chromium needs explicit shared-library packages in the Replit Nix environment.
