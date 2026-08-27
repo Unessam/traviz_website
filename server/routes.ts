@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage as defaultStorage } from "./storage";
 import { setupAuth, isAuthenticated, isRetentionAuthorized } from "./replitAuth";
 import { createContactNotifier, type ContactNotifier } from "./contactNotification";
 import { persistContactSubmissionAndNotify } from "./contactSubmission";
@@ -33,6 +33,8 @@ function getRouteId(params: { id?: string | string[] }): string {
 
 export interface RouteDependencies {
   contactNotifier?: ContactNotifier;
+  storage?: typeof defaultStorage;
+  setupAuth?: typeof setupAuth;
 }
 
 export async function registerRoutes(
@@ -40,9 +42,11 @@ export async function registerRoutes(
   dependencies: RouteDependencies = {},
 ): Promise<Server> {
   const contactNotifier = dependencies.contactNotifier ?? createContactNotifier();
+  const storage = dependencies.storage ?? defaultStorage;
+  const configureAuth = dependencies.setupAuth ?? setupAuth;
 
   // Auth middleware
-  await setupAuth(app);
+  await configureAuth(app);
   const retentionAuth = [isAuthenticated, isRetentionAuthorized] as const;
   const retentionDate = z.string().datetime({ offset: true }).optional();
   const retentionRunSchema = z.object({

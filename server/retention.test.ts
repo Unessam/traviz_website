@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import express, { type Express, type RequestHandler } from "express";
 import type {
   ContactSubmission,
   InsertContactSubmission,
@@ -26,6 +27,7 @@ import {
   executeRetentionRun,
   getRetentionPreview,
 } from "./retentionService";
+import { registerRoutes } from "./routes";
 
 const referenceTime = new Date("2026-08-26T12:00:00.000Z");
 
@@ -417,5 +419,177 @@ test("a legacy dry run without a candidate snapshot cannot authorize live action
   } finally {
     if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
     else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+const syntheticAuth: (app: Express) => Promise<void> = async (app) => {
+  app.use(((req: any, _res, next) => {
+    const email = req.header("x-test-user-email");
+    const userId = req.header("x-test-user-id");
+    req.user = {
+      claims: { sub: userId, email },
+      expires_at: Math.floor(Date.now() / 1000) + 60,
+    };
+    req.isAuthenticated = () => Boolean(userId);
+    next();
+  }) as RequestHandler);
+};
+
+async function withRetentionHttpServer(
+  run: (baseUrl: string, calls: string[]) => Promise<void>,
+) {
+  const calls: string[] = [];
+  const retentionStore = {
+    async getContactSubmissions() {
+      calls.push("getContactSubmissions");
+      return [];
+    },
+    async getRetentionTargets() {
+      calls.push("getRetentionTargets");
+      return { contacts: [], users: [] };
+    },
+    async getRecentRetentionRuns() {
+      calls.push("getRecentRetentionRuns");
+      return [];
+    },
+    async getRecentRetentionAuditEvents() {
+      calls.push("getRecentRetentionAuditEvents");
+      return [];
+    },
+    async createRetentionRun(input: any) {
+      calls.push("createRetentionRun");
+      return {
+        id: "synthetic-dry-run",
+        ...input,
+        candidateFingerprint: input.candidateFingerprint,
+        contactEligible: 0,
+        usersEligible: 0,
+        contactsDeleted: 0,
+        usersAnonymized: 0,
+        blockedByLegalHold: 0,
+        skipped: 0,
+        failureCode: null,
+        createdAt: referenceTime,
+        completedAt: null,
+      };
+    },
+    async updateRetentionRun(_id: string, update: any) {
+      calls.push("updateRetentionRun");
+      return {
+        id: "synthetic-dry-run",
+        requestedBy: "allowlisted-user",
+        referenceTime,
+        dryRun: true,
+        candidateFingerprint: update.candidateFingerprint,
+        contactEligible: 0,
+        usersEligible: 0,
+        contactsDeleted: 0,
+        usersAnonymized: 0,
+        blockedByLegalHold: 0,
+        skipped: 0,
+        failureCode: null,
+        createdAt: referenceTime,
+        completedAt: referenceTime,
+        ...update,
+      };
+    },
+    async recordRetentionAuditEvent() {
+      calls.push("recordRetentionAuditEvent");
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  const server = await registerRoutes(app, {
+    setupAuth: syntheticAuth,
+    storage: retentionStore as typeof import("./storage").storage,
+    contactNotifier: { notify: async () => ({ sent: false, status: "not_configured" }) },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected TCP test server");
+
+  try {
+    await run(`http://127.0.0.1:${address.port}`, calls);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+test("retention routes reject authenticated staff outside the allowlist", async () => {
+  const previousIds = process.env.RETENTION_ADMIN_USER_IDS;
+  const previousEmails = process.env.RETENTION_ADMIN_EMAILS;
+  process.env.RETENTION_ADMIN_USER_IDS = "allowlisted-user";
+  process.env.RETENTION_ADMIN_EMAILS = "allowed@example.test";
+
+  try {
+    await withRetentionHttpServer(async (baseUrl, calls) => {
+      const headers = { "x-test-user-id": "ordinary-staff", "x-test-user-email": "staff@example.test" };
+      const requests = [
+        fetch(`${baseUrl}/api/admin/contact-submissions`, { headers }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/read`, { method: "PATCH", headers }),
+        fetch(`${baseUrl}/api/admin/retention/preview`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, {
+          method: "POST",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ dryRun: true }),
+        }),
+        fetch(`${baseUrl}/api/admin/users/user-1/access-removal`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+        fetch(`${baseUrl}/api/admin/users/user-1/legal-hold`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ legalHold: true, reason: "Synthetic hold" }),
+        }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/legal-hold`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ legalHold: true, reason: "Synthetic hold" }),
+        }),
+      ];
+      const responses = await Promise.all(requests);
+      assert.deepEqual(responses.map((response) => response.status), responses.map(() => 403));
+      assert.deepEqual(calls, []);
+    });
+  } finally {
+    if (previousIds === undefined) delete process.env.RETENTION_ADMIN_USER_IDS;
+    else process.env.RETENTION_ADMIN_USER_IDS = previousIds;
+    if (previousEmails === undefined) delete process.env.RETENTION_ADMIN_EMAILS;
+    else process.env.RETENTION_ADMIN_EMAILS = previousEmails;
+  }
+});
+
+test("allowlisted staff can read retention data and execute only a dry run", async () => {
+  const previousIds = process.env.RETENTION_ADMIN_USER_IDS;
+  process.env.RETENTION_ADMIN_USER_IDS = "allowlisted-user";
+
+  try {
+    await withRetentionHttpServer(async (baseUrl, calls) => {
+      const headers = { "x-test-user-id": "ALLOWLISTED-USER", "x-test-user-email": "staff@example.test" };
+      const readResponses = await Promise.all([
+        fetch(`${baseUrl}/api/admin/contact-submissions`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/preview`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
+      ]);
+      assert.deepEqual(readResponses.map((response) => response.status), [200, 200, 200, 200]);
+
+      const dryRun = await fetch(`${baseUrl}/api/admin/retention/runs`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify({ dryRun: true, referenceTime: referenceTime.toISOString() }),
+      });
+      assert.equal(dryRun.status, 200);
+      assert.ok(calls.includes("createRetentionRun"));
+      assert.ok(calls.includes("recordRetentionAuditEvent"));
+    });
+  } finally {
+    if (previousIds === undefined) delete process.env.RETENTION_ADMIN_USER_IDS;
+    else process.env.RETENTION_ADMIN_USER_IDS = previousIds;
   }
 });
