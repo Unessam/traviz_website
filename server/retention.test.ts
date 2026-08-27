@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 import express, { type Express, type RequestHandler } from "express";
+import { eq } from "drizzle-orm";
 import type {
   ContactSubmission,
   InsertContactSubmission,
   RetentionRun,
   User,
 } from "@shared/schema";
-import { contactFormSubmissionSchema } from "@shared/schema";
+import { contactFormSubmissionSchema, contactSubmissions } from "@shared/schema";
 import {
   getOAuthAccessRestorationPatch,
   getContactSubmissionRetentionDecision,
@@ -33,6 +35,8 @@ import {
 } from "./retentionService";
 import { registerRoutes } from "./routes";
 import { shouldLogApiResponseBody } from "./apiRequestLogging";
+import { db } from "./db";
+import { DatabaseStorage } from "./storage";
 
 const referenceTime = new Date("2026-08-26T12:00:00.000Z");
 
@@ -335,6 +339,107 @@ test("overlapping retry requests acquire only one notification claim", async () 
   release();
   assert.equal((await first)?.notificationStatus, "sent");
   assert.equal(calls, 1);
+});
+
+async function withDatabaseContact(
+  overrides: Partial<typeof contactSubmissions.$inferInsert>,
+  run: (id: string, store: DatabaseStorage) => Promise<void>,
+): Promise<void> {
+  const id = `synthetic-contention-${randomUUID()}`;
+  const store = new DatabaseStorage();
+  await db.insert(contactSubmissions).values({
+    id,
+    ...submissionInput(),
+    notificationStatus: "failed",
+    notificationAttempts: 1,
+    notificationFailureCode: "provider_error",
+    ...overrides,
+  });
+
+  try {
+    await run(id, store);
+  } finally {
+    await db.delete(contactSubmissions).where(eq(contactSubmissions.id, id));
+  }
+}
+
+test("database contention allows exactly one notification claim", async () => {
+  await withDatabaseContact({}, async (id, store) => {
+    const attemptedAt = new Date();
+    const [first, second] = await Promise.all([
+      store.claimContactNotificationAttempt(id, "claim-a", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+      store.claimContactNotificationAttempt(id, "claim-b", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+    ]);
+
+    const winners = [first, second].filter((claim): claim is ContactSubmission => claim !== undefined);
+    assert.equal(winners.length, 1);
+    assert.equal(winners[0].notificationStatus, "sending");
+    assert.equal(winners[0].notificationAttempts, 2);
+    assert.ok(["claim-a", "claim-b"].includes(winners[0].notificationClaimToken ?? ""));
+  });
+});
+
+test("a stale database completion token cannot overwrite a recovered attempt", async () => {
+  const recoveryTime = new Date();
+  await withDatabaseContact({
+    notificationStatus: "sending",
+    notificationClaimToken: "stale-claim",
+    notificationLastAttemptAt: new Date(
+      recoveryTime.getTime() - CONTACT_NOTIFICATION_CLAIM_LEASE_MS - 1_000,
+    ),
+  }, async (id, store) => {
+    const recovered = await store.claimContactNotificationAttempt(
+      id,
+      "recovered-claim",
+      recoveryTime,
+      MAX_CONTACT_NOTIFICATION_ATTEMPTS,
+    );
+    assert.equal(recovered?.notificationClaimToken, "recovered-claim");
+    assert.equal(recovered?.notificationAttempts, 2);
+
+    const staleCompletion = await store.completeContactNotificationAttempt(
+      id,
+      "stale-claim",
+      { status: "sent", failureCode: null },
+    );
+    assert.equal(staleCompletion, undefined);
+
+    const [current] = await db
+      .select()
+      .from(contactSubmissions)
+      .where(eq(contactSubmissions.id, id));
+    assert.equal(current.notificationStatus, "sending");
+    assert.equal(current.notificationClaimToken, "recovered-claim");
+    assert.equal(current.notificationAttempts, 2);
+  });
+});
+
+test("database contention enforces the notification attempt limit", async () => {
+  await withDatabaseContact({
+    notificationAttempts: MAX_CONTACT_NOTIFICATION_ATTEMPTS - 1,
+  }, async (id, store) => {
+    const attemptedAt = new Date();
+    const claims = await Promise.all([
+      store.claimContactNotificationAttempt(id, "final-claim-a", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+      store.claimContactNotificationAttempt(id, "final-claim-b", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+    ]);
+
+    assert.equal(claims.filter(Boolean).length, 1);
+    const furtherClaim = await store.claimContactNotificationAttempt(
+      id,
+      "over-limit-claim",
+      attemptedAt,
+      MAX_CONTACT_NOTIFICATION_ATTEMPTS,
+    );
+    assert.equal(furtherClaim, undefined);
+
+    const [current] = await db
+      .select()
+      .from(contactSubmissions)
+      .where(eq(contactSubmissions.id, id));
+    assert.equal(current.notificationAttempts, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+    assert.equal(current.notificationStatus, "sending");
+  });
 });
 
 test("missing Postmark configuration is a safe no-op", async () => {
