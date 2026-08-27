@@ -34,7 +34,7 @@ import {
   type InsertResource,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, lt, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -100,6 +100,13 @@ export interface IStorage {
   createResource(resource: InsertResource): Promise<Resource>;
   updateResource(id: string, resource: Partial<InsertResource>): Promise<Resource>;
   deleteResource(id: string): Promise<void>;
+
+  // Retention and legal hold methods (not auto-invoked)
+  setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string): Promise<void>;
+  setUserLegalHold(id: string, legalHold: boolean, reason?: string): Promise<void>;
+  recordUserAccessRemoval(id: string, removedAt: Date): Promise<void>;
+  deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean>;
+  anonymizeEligibleUser(id: string, referenceTime: Date): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -371,6 +378,72 @@ export class DatabaseStorage implements IStorage {
 
   async deleteResource(id: string): Promise<void> {
     await db.update(resources).set({ isActive: false }).where(eq(resources.id, id));
+  }
+
+  // Retention and legal hold methods (not auto-invoked)
+  async setContactSubmissionLegalHold(id: string, legalHold: boolean, reason?: string): Promise<void> {
+    await db
+      .update(contactSubmissions)
+      .set({ legalHold, legalHoldReason: reason })
+      .where(eq(contactSubmissions.id, id));
+  }
+
+  async setUserLegalHold(id: string, legalHold: boolean, reason?: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ legalHold, legalHoldReason: reason })
+      .where(eq(users.id, id));
+  }
+
+  async recordUserAccessRemoval(id: string, removedAt: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ accessRemovedAt: removedAt })
+      .where(eq(users.id, id));
+  }
+
+  async deleteEligibleContactSubmission(id: string, referenceTime: Date): Promise<boolean> {
+    const cutoffDate = new Date(referenceTime);
+    cutoffDate.setMonth(cutoffDate.getMonth() - 12);
+
+    const result = await db
+      .delete(contactSubmissions)
+      .where(
+        and(
+          eq(contactSubmissions.id, id),
+          eq(contactSubmissions.legalHold, false),
+          lt(contactSubmissions.createdAt, cutoffDate)
+        )
+      )
+      .returning();
+
+    return result.length > 0;
+  }
+
+  async anonymizeEligibleUser(id: string, referenceTime: Date): Promise<boolean> {
+    const cutoffDate = new Date(referenceTime);
+    cutoffDate.setDate(cutoffDate.getDate() - 90);
+
+    const result = await db
+      .update(users)
+      .set({
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+        retentionActionAt: new Date(),
+      })
+      .where(
+        and(
+          eq(users.id, id),
+          eq(users.legalHold, false),
+          isNull(users.retentionActionAt),
+          lt(users.accessRemovedAt, cutoffDate)
+        )
+      )
+      .returning();
+
+    return result.length > 0;
   }
 }
 

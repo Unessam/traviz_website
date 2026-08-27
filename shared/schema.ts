@@ -32,6 +32,10 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  legalHold: boolean("legal_hold").notNull().default(false),
+  legalHoldReason: text("legal_hold_reason"),
+  accessRemovedAt: timestamp("access_removed_at"),
+  retentionActionAt: timestamp("retention_action_at"),
 });
 
 // Content management tables
@@ -141,6 +145,8 @@ export const contactSubmissions = pgTable("contact_submissions", {
   message: text("message").notNull(),
   isRead: boolean("is_read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  legalHold: boolean("legal_hold").notNull().default(false),
+  legalHoldReason: text("legal_hold_reason"),
 });
 
 export const stats = pgTable("stats", {
