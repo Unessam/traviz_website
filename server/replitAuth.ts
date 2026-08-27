@@ -155,3 +155,27 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+function configuredValues(name: string): Set<string> {
+  return new Set(
+    (process.env[name] ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+export const isRetentionAuthorized: RequestHandler = (req, res, next) => {
+  const user = req.user as any;
+  const claims = user?.claims;
+  const userId = typeof claims?.sub === "string" ? claims.sub.toLowerCase() : "";
+  const email = typeof claims?.email === "string" ? claims.email.toLowerCase() : "";
+  const allowedIds = configuredValues("RETENTION_ADMIN_USER_IDS");
+  const allowedEmails = configuredValues("RETENTION_ADMIN_EMAILS");
+
+  if ((userId && allowedIds.has(userId)) || (email && allowedEmails.has(email))) {
+    return next();
+  }
+
+  return res.status(403).json({ message: "Retention authorization required" });
+};

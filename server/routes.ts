@@ -1,9 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { storage as defaultStorage } from "./storage";
+import { setupAuth, isAuthenticated, isRetentionAuthorized } from "./replitAuth";
 import { createContactNotifier, type ContactNotifier } from "./contactNotification";
-import { persistContactSubmissionAndNotify } from "./contactSubmission";
+import { attemptContactNotification, persistContactSubmissionAndNotify } from "./contactSubmission";
 import { 
   insertHeroContentSchema,
   insertServiceSchema,
@@ -16,6 +16,12 @@ import {
   insertStatsSchema,
   insertResourceSchema
 } from "@shared/schema";
+import {
+  executeRetentionRun,
+  getRetentionPreview,
+} from "./retentionService";
+import { RETENTION_APPLY_CONFIRMATION } from "./retention";
+import { z } from "zod";
 
 function getRouteId(params: { id?: string | string[] }): string {
   if (typeof params.id !== "string") {
@@ -27,6 +33,11 @@ function getRouteId(params: { id?: string | string[] }): string {
 
 export interface RouteDependencies {
   contactNotifier?: ContactNotifier;
+  storage?: typeof defaultStorage;
+  setupAuth?: typeof setupAuth;
+  contactLogger?: {
+    error(event: string, context: { category: "storage_error" }): void;
+  };
 }
 
 export async function registerRoutes(
@@ -34,9 +45,24 @@ export async function registerRoutes(
   dependencies: RouteDependencies = {},
 ): Promise<Server> {
   const contactNotifier = dependencies.contactNotifier ?? createContactNotifier();
+  const storage = dependencies.storage ?? defaultStorage;
+  const configureAuth = dependencies.setupAuth ?? setupAuth;
+  const contactLogger = dependencies.contactLogger ?? console;
 
   // Auth middleware
-  await setupAuth(app);
+  await configureAuth(app);
+  const retentionAuth = [isAuthenticated, isRetentionAuthorized] as const;
+  const retentionDate = z.string().datetime({ offset: true }).optional();
+  const retentionRunSchema = z.object({
+    dryRun: z.boolean(),
+    referenceTime: retentionDate,
+    previewRunId: z.string().min(1).optional(),
+    confirmation: z.string().optional(),
+  }).strict();
+  const legalHoldSchema = z.object({
+    legalHold: z.boolean(),
+    reason: z.string().trim().min(1).max(2000),
+  }).strict();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -143,19 +169,25 @@ export async function registerRoutes(
 
   // Contact form submission
   app.post('/api/contact', async (req, res) => {
+    const validation = contactFormSubmissionSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ message: "Invalid form data" });
+      return;
+    }
+
     try {
-      const validatedData = contactFormSubmissionSchema.parse(req.body);
-      
       const submission = await persistContactSubmissionAndNotify(
-        validatedData,
+        validation.data,
         storage,
         contactNotifier,
       );
       
       res.status(201).json({ message: "Contact form submitted successfully", id: submission.id });
-    } catch (error) {
-      console.error("Error submitting contact form:", error);
-      res.status(400).json({ message: "Invalid form data" });
+    } catch {
+      contactLogger.error("[contact-submission] persistence failed", {
+        category: "storage_error",
+      });
+      res.status(503).json({ message: "Unable to submit contact form" });
     }
   });
 
@@ -170,13 +202,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get('/api/admin/contact-submissions', isAuthenticated, async (req, res) => {
+  app.get('/api/admin/contact-submissions', ...retentionAuth, async (req, res) => {
     try {
       const submissions = await storage.getContactSubmissions();
-      res.json(submissions);
+      res.json(submissions.map(({ notificationClaimToken: _claimToken, ...submission }) => submission));
     } catch (error) {
       console.error("Error fetching contact submissions:", error);
       res.status(500).json({ message: "Failed to fetch contact submissions" });
+    }
+  });
+
+  app.post('/api/admin/contact-submissions/:id/notification-retry', ...retentionAuth, async (req, res) => {
+    try {
+      const id = getRouteId(req.params);
+      const submission = await attemptContactNotification(id, storage, contactNotifier);
+      if (!submission) {
+        res.status(409).json({ message: "Notification is not eligible for retry" });
+        return;
+      }
+      res.json({
+        id: submission.id,
+        notificationStatus: submission.notificationStatus,
+        notificationAttempts: submission.notificationAttempts,
+        notificationLastAttemptAt: submission.notificationLastAttemptAt,
+        notificationFailureCode: submission.notificationFailureCode,
+      });
+    } catch {
+      contactLogger.error("[contact-notification] retry failed", {
+        category: "storage_error",
+      });
+      res.status(503).json({ message: "Unable to retry notification" });
     }
   });
 
@@ -438,7 +493,7 @@ export async function registerRoutes(
   });
 
   // Mark contact submission as read
-  app.patch('/api/admin/contact-submissions/:id/read', isAuthenticated, async (req, res) => {
+  app.patch('/api/admin/contact-submissions/:id/read', ...retentionAuth, async (req, res) => {
     try {
       const id = getRouteId(req.params);
       await storage.markContactSubmissionAsRead(id);
@@ -446,6 +501,91 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error marking submission as read:", error);
       res.status(500).json({ message: "Failed to update submission" });
+    }
+  });
+
+  app.get('/api/admin/retention/preview', ...retentionAuth, async (req, res) => {
+    try {
+      const query = z.object({ referenceTime: retentionDate }).strict().parse(req.query);
+      const referenceTime = query.referenceTime ? new Date(query.referenceTime) : new Date();
+      const preview = await getRetentionPreview(storage, referenceTime);
+      res.json(preview);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Invalid retention preview request" });
+    }
+  });
+
+  app.get('/api/admin/retention/runs', ...retentionAuth, async (req, res) => {
+    try {
+      const limit = z.coerce.number().int().min(1).max(100).default(20).parse(req.query.limit);
+      res.json(await storage.getRecentRetentionRuns(limit));
+    } catch {
+      res.status(400).json({ message: "Invalid retention run query" });
+    }
+  });
+
+  app.get('/api/admin/retention/audit-events', ...retentionAuth, async (req, res) => {
+    try {
+      const limit = z.coerce.number().int().min(1).max(100).default(50).parse(req.query.limit);
+      res.json(await storage.getRecentRetentionAuditEvents(limit));
+    } catch {
+      res.status(400).json({ message: "Invalid retention audit query" });
+    }
+  });
+
+  app.post('/api/admin/retention/runs', ...retentionAuth, async (req: any, res) => {
+    try {
+      const body = retentionRunSchema.parse(req.body);
+      if (!body.dryRun && body.confirmation !== RETENTION_APPLY_CONFIRMATION) {
+        return res.status(400).json({ message: `Confirmation must equal ${RETENTION_APPLY_CONFIRMATION}` });
+      }
+      const referenceTime = body.referenceTime ? new Date(body.referenceTime) : new Date();
+      const run = await executeRetentionRun(storage, {
+        requestedBy: req.user.claims.sub,
+        referenceTime,
+        dryRun: body.dryRun,
+        previewRunId: body.previewRunId,
+      });
+      return res.status(body.dryRun ? 200 : 202).json(run);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Retention run failed";
+      const status = message === "RETENTION_AUTOMATION_DISABLED" || message === "DRY_RUN_REVIEW_REQUIRED" || message === "INVALID_DRY_RUN_REVIEW" || message === "REFERENCE_TIME_MISMATCH" || message === "DRY_RUN_REVIEW_STALE" ? 409 : 400;
+      return res.status(status).json({ message });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/access-removal', ...retentionAuth, async (req: any, res) => {
+    try {
+      const body = z.object({ removedAt: retentionDate }).strict().parse(req.body);
+      const removedAt = body.removedAt ? new Date(body.removedAt) : new Date();
+      if (removedAt.getTime() > Date.now()) return res.status(400).json({ message: "removedAt cannot be in the future" });
+      const user = await storage.recordUserAccessRemoval(getRouteId(req.params), removedAt, { actorId: req.user.claims.sub });
+      if (!user) return res.status(404).json({ message: "User not found" });
+      return res.json({ id: user.id, accessRemovedAt: user.accessRemovedAt });
+    } catch {
+      return res.status(400).json({ message: "Invalid access-removal request" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/legal-hold', ...retentionAuth, async (req: any, res) => {
+    try {
+      const body = legalHoldSchema.parse(req.body);
+      const user = await storage.setUserLegalHold(getRouteId(req.params), body.legalHold, body.reason, { actorId: req.user.claims.sub });
+      if (!user) return res.status(404).json({ message: "User not found" });
+      return res.json({ id: user.id, legalHold: user.legalHold, legalHoldReason: user.legalHoldReason });
+    } catch {
+      return res.status(400).json({ message: "Invalid legal-hold request" });
+    }
+  });
+
+  app.patch('/api/admin/contact-submissions/:id/legal-hold', ...retentionAuth, async (req: any, res) => {
+    try {
+      const body = legalHoldSchema.parse(req.body);
+      const submission = await storage.setContactSubmissionLegalHold(getRouteId(req.params), body.legalHold, body.reason, { actorId: req.user.claims.sub });
+      if (!submission) return res.status(404).json({ message: "Contact submission not found" });
+      return res.json({ id: submission.id, legalHold: submission.legalHold, legalHoldReason: submission.legalHoldReason });
+    } catch {
+      return res.status(400).json({ message: "Invalid legal-hold request" });
     }
   });
 

@@ -4,12 +4,13 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["glib", "gtk3", "nss", "nspr", "atk", "at-spi2-atk", "cups", "dbus", "libdrm", "expat", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "pango", "cairo", "alsa-lib", "libxkbcommon"]
 
 [deployment]
 deploymentTarget = "autoscale"
 # The build command includes the production-only dependency audit gate.
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["npm", "run", "start:with-migrations"]
 
 [[ports]]
 localPort = 5000

@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
+import express, { type Express, type RequestHandler } from "express";
+import { eq } from "drizzle-orm";
 import type {
   ContactSubmission,
   InsertContactSubmission,
+  RetentionRun,
   User,
 } from "@shared/schema";
-import { contactFormSubmissionSchema } from "@shared/schema";
+import { contactFormSubmissionSchema, contactSubmissions } from "@shared/schema";
 import {
   getOAuthAccessRestorationPatch,
   getContactSubmissionRetentionDecision,
@@ -15,12 +19,24 @@ import {
 } from "./retention";
 import {
   createContactNotifier,
+  POSTMARK_REQUEST_TIMEOUT_SECONDS,
   type ContactNotificationClient,
 } from "./contactNotification";
 import {
+  attemptContactNotification,
+  CONTACT_NOTIFICATION_CLAIM_LEASE_MS,
+  MAX_CONTACT_NOTIFICATION_ATTEMPTS,
   persistContactSubmissionAndNotify,
   type ContactSubmissionStore,
 } from "./contactSubmission";
+import {
+  executeRetentionRun,
+  getRetentionPreview,
+} from "./retentionService";
+import { registerRoutes } from "./routes";
+import { shouldLogApiResponseBody } from "./apiRequestLogging";
+import { db } from "./db";
+import { DatabaseStorage } from "./storage";
 
 const referenceTime = new Date("2026-08-26T12:00:00.000Z");
 
@@ -34,6 +50,11 @@ function contact(overrides: Partial<ContactSubmission> = {}): ContactSubmission 
     isRead: false,
     legalHold: false,
     legalHoldReason: null,
+    notificationStatus: "pending",
+    notificationAttempts: 0,
+    notificationLastAttemptAt: null,
+    notificationFailureCode: null,
+    notificationClaimToken: null,
     createdAt: new Date("2025-08-26T12:00:00.000Z"),
     ...overrides,
   };
@@ -130,10 +151,50 @@ class MemoryContactStore implements ContactSubmissionStore {
       isRead: false,
       legalHold: false,
       legalHoldReason: null,
+      notificationStatus: "pending",
+      notificationAttempts: 0,
+      notificationLastAttemptAt: null,
+      notificationFailureCode: null,
+      notificationClaimToken: null,
       createdAt: referenceTime,
     };
     this.submissions.push(stored);
     return stored;
+  }
+
+  async claimContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    attemptedAt: Date,
+    maxAttempts: number,
+  ): Promise<ContactSubmission | undefined> {
+    const stored = this.submissions.find((candidate) => candidate.id === id);
+    if (
+      !stored
+      || !["pending", "failed"].includes(stored.notificationStatus)
+      || stored.notificationAttempts >= maxAttempts
+    ) return undefined;
+    stored.notificationStatus = "sending";
+    stored.notificationAttempts += 1;
+    stored.notificationLastAttemptAt = attemptedAt;
+    stored.notificationFailureCode = null;
+    stored.notificationClaimToken = claimToken;
+    return { ...stored };
+  }
+
+  async completeContactNotificationAttempt(
+    id: string,
+    claimToken: string,
+    result: { status: "sent" | "failed"; failureCode: "not_configured" | "configuration_invalid" | "provider_error" | "notifier_error" | null },
+  ): Promise<ContactSubmission | undefined> {
+    const stored = this.submissions.find((candidate) => candidate.id === id);
+    if (!stored || stored.notificationStatus !== "sending" || stored.notificationClaimToken !== claimToken) {
+      return undefined;
+    }
+    stored.notificationStatus = result.status;
+    stored.notificationFailureCode = result.failureCode;
+    stored.notificationClaimToken = null;
+    return { ...stored };
   }
 }
 
@@ -171,6 +232,8 @@ test("contact storage completes before a successful notification", async () => {
   assert.equal(stored.id, store.submissions[0].id);
   assert.equal(messages.length, 1);
   assert.equal(messages[0].From, "noreply@example.test");
+  assert.equal(stored.notificationStatus, "sent");
+  assert.equal(stored.notificationAttempts, 1);
 });
 
 test("notification failure preserves the stored contact and logs no sensitive details", async () => {
@@ -200,6 +263,8 @@ test("notification failure preserves the stored contact and logs no sensitive de
 
   assert.equal(store.submissions.length, 1);
   assert.equal(stored.email, "synthetic@example.test");
+  assert.equal(stored.notificationStatus, "failed");
+  assert.equal(stored.notificationFailureCode, "provider_error");
   assert.equal(logs.length, 1);
   const serializedLogs = JSON.stringify(logs);
   assert.match(serializedLogs, /provider_error/);
@@ -207,9 +272,770 @@ test("notification failure preserves the stored contact and logs no sensitive de
   assert.doesNotMatch(serializedLogs, /Synthetic message/);
 });
 
+test("a transient notification failure can be retried successfully", async () => {
+  const store = new MemoryContactStore();
+  let calls = 0;
+  const notifier = createContactNotifier({
+    client: {
+      async sendEmail() {
+        calls += 1;
+        if (calls === 1) throw new Error("temporary outage");
+      },
+    },
+    fromEmail: "noreply@example.test",
+    toEmail: "inbox@example.test",
+    logger: { error() {} },
+  });
+
+  const first = await persistContactSubmissionAndNotify(submissionInput(), store, notifier);
+  assert.equal(first.notificationStatus, "failed");
+  const retried = await attemptContactNotification(first.id, store, notifier);
+  assert.equal(retried?.notificationStatus, "sent");
+  assert.equal(retried?.notificationAttempts, 2);
+  assert.equal(calls, 2);
+});
+
+test("notification retries stop at the bounded attempt limit", async () => {
+  const store = new MemoryContactStore();
+  let calls = 0;
+  const notifier = createContactNotifier({
+    client: { async sendEmail() { calls += 1; throw new Error("outage"); } },
+    fromEmail: "noreply@example.test",
+    toEmail: "inbox@example.test",
+    logger: { error() {} },
+  });
+
+  const first = await persistContactSubmissionAndNotify(submissionInput(), store, notifier);
+  for (let attempt = 1; attempt < MAX_CONTACT_NOTIFICATION_ATTEMPTS; attempt += 1) {
+    await attemptContactNotification(first.id, store, notifier);
+  }
+  const exhausted = await attemptContactNotification(first.id, store, notifier);
+  assert.equal(exhausted, undefined);
+  assert.equal(store.submissions[0].notificationStatus, "failed");
+  assert.equal(store.submissions[0].notificationAttempts, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+  assert.equal(calls, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+});
+
+test("overlapping retry requests acquire only one notification claim", async () => {
+  const store = new MemoryContactStore();
+  const stored = await store.createContactSubmission(submissionInput());
+  stored.notificationStatus = "failed";
+  store.submissions[0].notificationStatus = "failed";
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  const notifier = {
+    async notify() {
+      calls += 1;
+      await gate;
+      return { sent: true as const, status: "sent" as const };
+    },
+  };
+
+  const first = attemptContactNotification(stored.id, store, notifier);
+  await new Promise((resolve) => setImmediate(resolve));
+  const duplicate = await attemptContactNotification(stored.id, store, notifier);
+  assert.equal(duplicate, undefined);
+  release();
+  assert.equal((await first)?.notificationStatus, "sent");
+  assert.equal(calls, 1);
+});
+
+async function withDatabaseContact(
+  overrides: Partial<typeof contactSubmissions.$inferInsert>,
+  run: (id: string, store: DatabaseStorage) => Promise<void>,
+): Promise<void> {
+  const id = `synthetic-contention-${randomUUID()}`;
+  const store = new DatabaseStorage();
+  await db.insert(contactSubmissions).values({
+    id,
+    ...submissionInput(),
+    notificationStatus: "failed",
+    notificationAttempts: 1,
+    notificationFailureCode: "provider_error",
+    ...overrides,
+  });
+
+  try {
+    await run(id, store);
+  } finally {
+    await db.delete(contactSubmissions).where(eq(contactSubmissions.id, id));
+  }
+}
+
+test("database contention allows exactly one notification claim", async () => {
+  await withDatabaseContact({}, async (id, store) => {
+    const attemptedAt = new Date();
+    const [first, second] = await Promise.all([
+      store.claimContactNotificationAttempt(id, "claim-a", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+      store.claimContactNotificationAttempt(id, "claim-b", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+    ]);
+
+    const winners = [first, second].filter((claim): claim is ContactSubmission => claim !== undefined);
+    assert.equal(winners.length, 1);
+    assert.equal(winners[0].notificationStatus, "sending");
+    assert.equal(winners[0].notificationAttempts, 2);
+    assert.ok(["claim-a", "claim-b"].includes(winners[0].notificationClaimToken ?? ""));
+  });
+});
+
+test("a stale database completion token cannot overwrite a recovered attempt", async () => {
+  const recoveryTime = new Date();
+  await withDatabaseContact({
+    notificationStatus: "sending",
+    notificationClaimToken: "stale-claim",
+    notificationLastAttemptAt: new Date(
+      recoveryTime.getTime() - CONTACT_NOTIFICATION_CLAIM_LEASE_MS - 1_000,
+    ),
+  }, async (id, store) => {
+    const recovered = await store.claimContactNotificationAttempt(
+      id,
+      "recovered-claim",
+      recoveryTime,
+      MAX_CONTACT_NOTIFICATION_ATTEMPTS,
+    );
+    assert.equal(recovered?.notificationClaimToken, "recovered-claim");
+    assert.equal(recovered?.notificationAttempts, 2);
+
+    const staleCompletion = await store.completeContactNotificationAttempt(
+      id,
+      "stale-claim",
+      { status: "sent", failureCode: null },
+    );
+    assert.equal(staleCompletion, undefined);
+
+    const [current] = await db
+      .select()
+      .from(contactSubmissions)
+      .where(eq(contactSubmissions.id, id));
+    assert.equal(current.notificationStatus, "sending");
+    assert.equal(current.notificationClaimToken, "recovered-claim");
+    assert.equal(current.notificationAttempts, 2);
+  });
+});
+
+test("database contention enforces the notification attempt limit", async () => {
+  await withDatabaseContact({
+    notificationAttempts: MAX_CONTACT_NOTIFICATION_ATTEMPTS - 1,
+  }, async (id, store) => {
+    const attemptedAt = new Date();
+    const claims = await Promise.all([
+      store.claimContactNotificationAttempt(id, "final-claim-a", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+      store.claimContactNotificationAttempt(id, "final-claim-b", attemptedAt, MAX_CONTACT_NOTIFICATION_ATTEMPTS),
+    ]);
+
+    assert.equal(claims.filter(Boolean).length, 1);
+    const furtherClaim = await store.claimContactNotificationAttempt(
+      id,
+      "over-limit-claim",
+      attemptedAt,
+      MAX_CONTACT_NOTIFICATION_ATTEMPTS,
+    );
+    assert.equal(furtherClaim, undefined);
+
+    const [current] = await db
+      .select()
+      .from(contactSubmissions)
+      .where(eq(contactSubmissions.id, id));
+    assert.equal(current.notificationAttempts, MAX_CONTACT_NOTIFICATION_ATTEMPTS);
+    assert.equal(current.notificationStatus, "sending");
+  });
+});
+
 test("missing Postmark configuration is a safe no-op", async () => {
-  const notifier = createContactNotifier({ env: {} });
+  const logs: unknown[] = [];
+  const notifier = createContactNotifier({
+    env: {},
+    logger: { error: (...args) => logs.push(args) },
+  });
   const result = await notifier.notify(contact());
 
   assert.deepEqual(result, { sent: false, status: "not_configured" });
+  assert.deepEqual(logs, []);
+});
+
+test("partial or invalid Postmark configuration fails safely with fixed diagnostics", async () => {
+  const cases = [
+    { env: { POSTMARK_API_KEY: "synthetic-key" } },
+    {
+      env: {
+        POSTMARK_API_KEY: "synthetic-key",
+        POSTMARK_FROM_EMAIL: "not-an-address",
+        POSTMARK_TO_EMAIL: "inbox@example.test",
+      },
+    },
+    {
+      env: {
+        POSTMARK_API_KEY: "   ",
+        POSTMARK_FROM_EMAIL: "noreply@example.test",
+        POSTMARK_TO_EMAIL: "inbox@example.test",
+      },
+    },
+  ];
+
+  for (const testCase of cases) {
+    const logs: Array<{ message: string; context?: Record<string, unknown> }> = [];
+    const notifier = createContactNotifier({
+      env: testCase.env,
+      logger: {
+        error(message, context) {
+          logs.push({ message, context });
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await notifier.notify(contact()),
+      { sent: false, status: "configuration_invalid" },
+    );
+    assert.deepEqual(logs, [{
+      message: "[contact-notification] configuration invalid",
+      context: { reason: "configuration_error" },
+    }]);
+    assert.doesNotMatch(JSON.stringify(logs), /synthetic-key|not-an-address|inbox@example\.test/);
+  }
+});
+
+test("configured notifications use trimmed approved identities", async () => {
+  const messages: Array<Record<string, string>> = [];
+  const notifier = createContactNotifier({
+    apiKey: " synthetic-key ",
+    fromEmail: " noreply@example.test ",
+    toEmail: " inbox@example.test ",
+    client: {
+      async sendEmail(message) {
+        messages.push(message);
+        return { ErrorCode: 0, Message: "OK" };
+      },
+    },
+  });
+
+  assert.deepEqual(await notifier.notify(contact()), { sent: true, status: "sent" });
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].From, "noreply@example.test");
+  assert.equal(messages[0].To, "inbox@example.test");
+});
+
+test("the Postmark request timeout stays safely below the claim recovery lease", () => {
+  assert.equal(POSTMARK_REQUEST_TIMEOUT_SECONDS, 30);
+  assert.ok(POSTMARK_REQUEST_TIMEOUT_SECONDS * 1000 < CONTACT_NOTIFICATION_CLAIM_LEASE_MS);
+});
+
+async function withContactHttpServer(
+  createContactSubmission: (submission: InsertContactSubmission) => Promise<ContactSubmission>,
+  run: (
+    baseUrl: string,
+    logs: Array<{ event: string; context: { category: "storage_error" } }>,
+  ) => Promise<void>,
+) {
+  const logs: Array<{ event: string; context: { category: "storage_error" } }> = [];
+  const app = express();
+  app.use(express.json());
+  const server = await registerRoutes(app, {
+    setupAuth: async () => {},
+    storage: { createContactSubmission } as typeof import("./storage").storage,
+    contactNotifier: { notify: async () => ({ sent: true, status: "sent" }) },
+    contactLogger: {
+      error(event, context) {
+        logs.push({ event, context });
+      },
+    },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected TCP test server");
+
+  try {
+    await run(`http://127.0.0.1:${address.port}`, logs);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+test("contact validation failures return a safe client response without route diagnostics", async () => {
+  await withContactHttpServer(
+    async () => {
+      throw new Error("Storage must not be called");
+    },
+    async (baseUrl, logs) => {
+      const response = await fetch(`${baseUrl}/api/contact?credential=QUERY_SECRET`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "PRIVATE_NAME",
+          email: "private-address@example.test",
+          company: "PRIVATE_COMPANY",
+        }),
+      });
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), { message: "Invalid form data" });
+      assert.deepEqual(logs, []);
+    },
+  );
+});
+
+test("contact storage failures log only fixed safe diagnostics", async () => {
+  const submitted = {
+    name: "PRIVATE_NAME",
+    email: "private-address@example.test",
+    company: "PRIVATE_COMPANY",
+    message: "PRIVATE_MESSAGE",
+  };
+  const forbidden = [
+    ...Object.values(submitted),
+    "QUERY_SECRET",
+    "DATABASE_SECRET",
+    "postgres://credential:password@database.example/private",
+    "insert into contact_submissions",
+  ];
+
+  await withContactHttpServer(
+    async () => {
+      throw new Error(
+        "DATABASE_SECRET postgres://credential:password@database.example/private "
+        + "insert into contact_submissions values (private-address@example.test)",
+      );
+    },
+    async (baseUrl, logs) => {
+      const response = await fetch(`${baseUrl}/api/contact?credential=QUERY_SECRET`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(submitted),
+      });
+
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { message: "Unable to submit contact form" });
+      assert.deepEqual(logs, [{
+        event: "[contact-submission] persistence failed",
+        context: { category: "storage_error" },
+      }]);
+
+      const serialized = JSON.stringify(logs);
+      for (const sensitiveValue of forbidden) {
+        assert.doesNotMatch(serialized, new RegExp(sensitiveValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      }
+    },
+  );
+});
+
+test("the API request logger never captures contact response bodies", () => {
+  assert.equal(shouldLogApiResponseBody("/api/contact"), false);
+  assert.equal(shouldLogApiResponseBody("/api/admin/contact-submissions"), false);
+  assert.equal(
+    shouldLogApiResponseBody("/api/admin/contact-submissions/contact-1/notification-retry"),
+    false,
+  );
+  assert.equal(shouldLogApiResponseBody("/api/admin/retention/runs"), true);
+});
+
+class MemoryRetentionStore {
+  contacts: ContactSubmission[];
+  users: User[];
+  runs = new Map<string, RetentionRun>();
+  events: Array<{ eventType: string; runId?: string }> = [];
+  private nextRunId = 1;
+
+  constructor(contacts: ContactSubmission[], users: User[]) {
+    this.contacts = contacts;
+    this.users = users;
+  }
+
+  async getRetentionTargets() {
+    return {
+      contacts: this.contacts.map(({ id, createdAt, legalHold }) => ({ id, createdAt, legalHold })),
+      users: this.users.map(({ id, accessRemovedAt, retentionActionAt, legalHold }) => ({
+        id,
+        accessRemovedAt,
+        retentionActionAt,
+        legalHold,
+      })),
+    };
+  }
+
+  async createRetentionRun(input: {
+    requestedBy: string;
+    referenceTime: Date;
+    dryRun: boolean;
+    status: string;
+  }): Promise<RetentionRun> {
+    const run: RetentionRun = {
+      id: `run-${this.nextRunId++}`,
+      ...input,
+      candidateFingerprint: input.candidateFingerprint,
+      contactEligible: 0,
+      usersEligible: 0,
+      contactsDeleted: 0,
+      usersAnonymized: 0,
+      blockedByLegalHold: 0,
+      skipped: 0,
+      failureCode: null,
+      createdAt: input.referenceTime,
+      completedAt: null,
+    };
+    this.runs.set(run.id, run);
+    return run;
+  }
+
+  async updateRetentionRun(id: string, update: Record<string, unknown>): Promise<RetentionRun | undefined> {
+    const run = this.runs.get(id);
+    if (!run) return undefined;
+    const updated = { ...run, ...update } as RetentionRun;
+    this.runs.set(id, updated);
+    return updated;
+  }
+
+  async getRetentionRun(id: string): Promise<RetentionRun | undefined> {
+    return this.runs.get(id);
+  }
+
+  async deleteEligibleContactSubmission(id: string): Promise<boolean> {
+    const before = this.contacts.length;
+    this.contacts = this.contacts.filter((submission) => submission.id !== id);
+    return this.contacts.length < before;
+  }
+
+  async anonymizeEligibleUser(id: string, referenceTime: Date): Promise<User | undefined> {
+    const target = this.users.find((candidate) => candidate.id === id);
+    if (!target) return undefined;
+    target.email = null;
+    target.firstName = null;
+    target.lastName = null;
+    target.profileImageUrl = null;
+    target.retentionActionAt = referenceTime;
+    return target;
+  }
+
+  async recordRetentionAuditEvent(input: { eventType: string; runId?: string }): Promise<void> {
+    this.events.push(input);
+  }
+}
+
+test("a dry retention run is observable but never mutates eligible records", async () => {
+  const store = new MemoryRetentionStore(
+    [contact(), contact({ id: "held-contact", legalHold: true })],
+    [user(), user({ id: "anonymized", retentionActionAt: referenceTime })],
+  );
+
+  const preview = await getRetentionPreview(store, referenceTime);
+  const run = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+
+  assert.deepEqual(preview.contacts, {
+    total: 2,
+    eligible: 1,
+    legalHold: 1,
+    notDue: 0,
+    missingTimestamp: 0,
+  });
+  assert.equal(preview.users.eligible, 1);
+  assert.equal(preview.users.alreadyAnonymized, 1);
+  assert.equal(run.status, "completed");
+  assert.equal(run.contactsDeleted, 0);
+  assert.equal(run.usersAnonymized, 0);
+  assert.equal(store.contacts.length, 2);
+  assert.equal(store.users[0].email, "synthetic@example.test");
+  assert.equal(store.events[0].eventType, "retention_dry_run");
+});
+
+test("a live retention run requires activation and a matching completed dry run", async () => {
+  const store = new MemoryRetentionStore([contact()], [user()]);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    const liveRun = await executeRetentionRun(store, {
+      requestedBy: "staff-1",
+      referenceTime,
+      dryRun: false,
+      previewRunId: dryRun.id,
+    });
+
+    assert.equal(liveRun.status, "completed");
+    assert.equal(liveRun.contactsDeleted, 1);
+    assert.equal(liveRun.usersAnonymized, 1);
+    assert.equal(store.contacts.length, 0);
+    assert.equal(store.users[0].email, null);
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+test("a live retention run rejects candidate changes after dry-run review", async () => {
+  const store = new MemoryRetentionStore([contact()], []);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  store.users.push(user());
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    await assert.rejects(
+      () => executeRetentionRun(store, {
+        requestedBy: "staff-1",
+        referenceTime,
+        dryRun: false,
+        previewRunId: dryRun.id,
+      }),
+      /DRY_RUN_REVIEW_STALE/,
+    );
+    assert.equal(store.contacts.length, 1);
+    assert.equal(store.users[0].email, "synthetic@example.test");
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+test("a legacy dry run without a candidate snapshot cannot authorize live actions", async () => {
+  const store = new MemoryRetentionStore([contact()], [user()]);
+  const dryRun = await executeRetentionRun(store, {
+    requestedBy: "staff-1",
+    referenceTime,
+    dryRun: true,
+  });
+  const legacyRun = store.runs.get(dryRun.id);
+  if (!legacyRun) throw new Error("Expected a stored dry run");
+  store.runs.set(dryRun.id, { ...legacyRun, candidateFingerprint: "legacy-unreviewable" });
+  const previousValue = process.env.RETENTION_AUTOMATION_ENABLED;
+  process.env.RETENTION_AUTOMATION_ENABLED = "true";
+
+  try {
+    await assert.rejects(
+      () => executeRetentionRun(store, {
+        requestedBy: "staff-1",
+        referenceTime,
+        dryRun: false,
+        previewRunId: dryRun.id,
+      }),
+      /DRY_RUN_REVIEW_STALE/,
+    );
+    assert.equal(store.contacts.length, 1);
+    assert.equal(store.users[0].email, "synthetic@example.test");
+  } finally {
+    if (previousValue === undefined) delete process.env.RETENTION_AUTOMATION_ENABLED;
+    else process.env.RETENTION_AUTOMATION_ENABLED = previousValue;
+  }
+});
+
+const syntheticAuth: (app: Express) => Promise<void> = async (app) => {
+  app.use(((req: any, _res, next) => {
+    const email = req.header("x-test-user-email");
+    const userId = req.header("x-test-user-id");
+    req.user = {
+      claims: { sub: userId, email },
+      expires_at: Math.floor(Date.now() / 1000) + 60,
+    };
+    req.isAuthenticated = () => Boolean(userId);
+    next();
+  }) as RequestHandler);
+};
+
+async function withRetentionHttpServer(
+  run: (baseUrl: string, calls: string[]) => Promise<void>,
+) {
+  const calls: string[] = [];
+  const retentionStore = {
+    async getContactSubmissions() {
+      calls.push("getContactSubmissions");
+      return [contact({ notificationClaimToken: "PRIVATE_CLAIM_TOKEN" })];
+    },
+    async claimContactNotificationAttempt(id: string, claimToken: string) {
+      calls.push("claimContactNotificationAttempt");
+      return contact({
+        id,
+        notificationStatus: "sending",
+        notificationAttempts: 1,
+        notificationClaimToken: claimToken,
+        notificationLastAttemptAt: referenceTime,
+      });
+    },
+    async completeContactNotificationAttempt(id: string, _claimToken: string, result: any) {
+      calls.push("completeContactNotificationAttempt");
+      return contact({
+        id,
+        notificationStatus: result.status,
+        notificationAttempts: 1,
+        notificationFailureCode: result.failureCode,
+        notificationLastAttemptAt: referenceTime,
+      });
+    },
+    async getRetentionTargets() {
+      calls.push("getRetentionTargets");
+      return { contacts: [], users: [] };
+    },
+    async getRecentRetentionRuns() {
+      calls.push("getRecentRetentionRuns");
+      return [];
+    },
+    async getRecentRetentionAuditEvents() {
+      calls.push("getRecentRetentionAuditEvents");
+      return [];
+    },
+    async createRetentionRun(input: any) {
+      calls.push("createRetentionRun");
+      return {
+        id: "synthetic-dry-run",
+        ...input,
+        candidateFingerprint: input.candidateFingerprint,
+        contactEligible: 0,
+        usersEligible: 0,
+        contactsDeleted: 0,
+        usersAnonymized: 0,
+        blockedByLegalHold: 0,
+        skipped: 0,
+        failureCode: null,
+        createdAt: referenceTime,
+        completedAt: null,
+      };
+    },
+    async updateRetentionRun(_id: string, update: any) {
+      calls.push("updateRetentionRun");
+      return {
+        id: "synthetic-dry-run",
+        requestedBy: "allowlisted-user",
+        referenceTime,
+        dryRun: true,
+        candidateFingerprint: update.candidateFingerprint,
+        contactEligible: 0,
+        usersEligible: 0,
+        contactsDeleted: 0,
+        usersAnonymized: 0,
+        blockedByLegalHold: 0,
+        skipped: 0,
+        failureCode: null,
+        createdAt: referenceTime,
+        completedAt: referenceTime,
+        ...update,
+      };
+    },
+    async recordRetentionAuditEvent() {
+      calls.push("recordRetentionAuditEvent");
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  const server = await registerRoutes(app, {
+    setupAuth: syntheticAuth,
+    storage: retentionStore as typeof import("./storage").storage,
+    contactNotifier: { notify: async () => ({ sent: false, status: "not_configured" }) },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected TCP test server");
+
+  try {
+    await run(`http://127.0.0.1:${address.port}`, calls);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+test("retention routes reject authenticated staff outside the allowlist", async () => {
+  const previousIds = process.env.RETENTION_ADMIN_USER_IDS;
+  const previousEmails = process.env.RETENTION_ADMIN_EMAILS;
+  process.env.RETENTION_ADMIN_USER_IDS = "allowlisted-user";
+  process.env.RETENTION_ADMIN_EMAILS = "allowed@example.test";
+
+  try {
+    await withRetentionHttpServer(async (baseUrl, calls) => {
+      const headers = { "x-test-user-id": "ordinary-staff", "x-test-user-email": "staff@example.test" };
+      const requests = [
+        fetch(`${baseUrl}/api/admin/contact-submissions`, { headers }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/read`, { method: "PATCH", headers }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/notification-retry`, { method: "POST", headers }),
+        fetch(`${baseUrl}/api/admin/retention/preview`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, {
+          method: "POST",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ dryRun: true }),
+        }),
+        fetch(`${baseUrl}/api/admin/users/user-1/access-removal`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+        fetch(`${baseUrl}/api/admin/users/user-1/legal-hold`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ legalHold: true, reason: "Synthetic hold" }),
+        }),
+        fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/legal-hold`, {
+          method: "PATCH",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({ legalHold: true, reason: "Synthetic hold" }),
+        }),
+      ];
+      const responses = await Promise.all(requests);
+      assert.deepEqual(responses.map((response) => response.status), responses.map(() => 403));
+      assert.deepEqual(calls, []);
+    });
+  } finally {
+    if (previousIds === undefined) delete process.env.RETENTION_ADMIN_USER_IDS;
+    else process.env.RETENTION_ADMIN_USER_IDS = previousIds;
+    if (previousEmails === undefined) delete process.env.RETENTION_ADMIN_EMAILS;
+    else process.env.RETENTION_ADMIN_EMAILS = previousEmails;
+  }
+});
+
+test("allowlisted staff can read retention data and execute only a dry run", async () => {
+  const previousIds = process.env.RETENTION_ADMIN_USER_IDS;
+  process.env.RETENTION_ADMIN_USER_IDS = "allowlisted-user";
+
+  try {
+    await withRetentionHttpServer(async (baseUrl, calls) => {
+      const headers = { "x-test-user-id": "ALLOWLISTED-USER", "x-test-user-email": "staff@example.test" };
+      const readResponses = await Promise.all([
+        fetch(`${baseUrl}/api/admin/contact-submissions`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/preview`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/runs`, { headers }),
+        fetch(`${baseUrl}/api/admin/retention/audit-events`, { headers }),
+      ]);
+      assert.deepEqual(readResponses.map((response) => response.status), [200, 200, 200, 200]);
+      const contactList = await readResponses[0].json();
+      assert.equal(contactList[0].notificationStatus, "pending");
+      assert.equal("notificationClaimToken" in contactList[0], false);
+
+      const retry = await fetch(`${baseUrl}/api/admin/contact-submissions/contact-1/notification-retry`, {
+        method: "POST",
+        headers,
+      });
+      assert.equal(retry.status, 200);
+      assert.deepEqual(await retry.json(), {
+        id: "contact-1",
+        notificationStatus: "failed",
+        notificationAttempts: 1,
+        notificationLastAttemptAt: referenceTime.toISOString(),
+        notificationFailureCode: "not_configured",
+      });
+
+      const dryRun = await fetch(`${baseUrl}/api/admin/retention/runs`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify({ dryRun: true, referenceTime: referenceTime.toISOString() }),
+      });
+      assert.equal(dryRun.status, 200);
+      assert.ok(calls.includes("createRetentionRun"));
+      assert.ok(calls.includes("recordRetentionAuditEvent"));
+    });
+  } finally {
+    if (previousIds === undefined) delete process.env.RETENTION_ADMIN_USER_IDS;
+    else process.env.RETENTION_ADMIN_USER_IDS = previousIds;
+  }
 });
