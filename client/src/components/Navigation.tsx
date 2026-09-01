@@ -13,6 +13,7 @@ export default function Navigation({ showAdmin = false }: NavigationProps) {
   const navItems = [
     { href: "/#home", label: "Home" },
     { href: "/#services", label: "How Traviz Works" },
+    { href: "/services/ai-opportunity-data-readiness-sprint", label: "Readiness Sprint" },
     { href: "/#case-studies", label: "Experience & Proof" },
     { href: "/#about", label: "About" },
     { href: "/#contact", label: "Contact" },
