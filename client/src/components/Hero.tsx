@@ -16,7 +16,7 @@ export default function Hero() {
               <p className="mb-8 text-xl leading-relaxed text-muted-blue">Traviz helps digital businesses identify where AI can create operational value, test whether the data and workflow are ready, and leave with a focused implementation plan. From retention and customer intelligence to workflow automation, the work starts with a business decision—not a technology demo.</p>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Button size="lg" className="bg-logo-purple text-lg font-semibold text-white shadow-lg transition-all duration-300 hover:bg-opacity-90 hover:shadow-xl" onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })} data-testid="button-primary-cta">Book a 20-minute AI readiness call</Button>
-                <Button variant="outline" size="lg" className="border-2 border-electric-teal text-lg font-semibold text-electric-teal transition-all duration-300 hover:bg-electric-teal hover:text-white" onClick={() => document.getElementById("services")?.scrollIntoView({ behavior: "smooth" })} data-testid="button-secondary-cta">Explore how Traviz works</Button>
+                <Button variant="outline" size="lg" className="border-2 border-electric-teal text-lg font-semibold text-electric-teal transition-all duration-300 hover:bg-electric-teal hover:text-white" asChild data-testid="button-secondary-cta"><a href="/services/ai-opportunity-data-readiness-sprint">View sprint details</a></Button>
               </div>
             </div>
             <div className="animate-fade-in"><img src={heroImage} alt="AI planning and operational decision-making" className="h-auto w-full rounded-2xl shadow-2xl" /></div>

@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
+import AiOpportunityDataReadinessSprint from "@/pages/AiOpportunityDataReadinessSprint";
 import CaseStudySportsbookChurnPrediction from "@/pages/CaseStudySportsbookChurnPrediction";
 import { DentalReception, DocumentsToData, IncidentSupport, RealTimeEngagement, VenuePlanningAi } from "@/pages/ApprovedCaseStudyPages";
 import NotFound from "@/pages/not-found";
@@ -16,6 +17,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/services/ai-opportunity-data-readiness-sprint" component={AiOpportunityDataReadinessSprint} />
       <Route path="/case-studies/sportsbook-churn-prediction" component={CaseStudySportsbookChurnPrediction} />
       <Route path="/case-studies/real-time-engagement" component={RealTimeEngagement} />
       <Route path="/case-studies/dental-ai-receptionist" component={DentalReception} />
