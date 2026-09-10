@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import AiOpportunityDataReadinessSprint from "@/pages/AiOpportunityDataReadinessSprint";
 import CaseStudySportsbookChurnPrediction from "@/pages/CaseStudySportsbookChurnPrediction";
+import PrivacyNotice from "@/pages/PrivacyNotice";
 import { DentalReception, DocumentsToData, IncidentSupport, RealTimeEngagement, VenuePlanningAi } from "@/pages/ApprovedCaseStudyPages";
 import NotFound from "@/pages/not-found";
 
@@ -17,6 +18,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/privacy" component={PrivacyNotice} />
       <Route path="/services/ai-opportunity-data-readiness-sprint" component={AiOpportunityDataReadinessSprint} />
       <Route path="/case-studies/sportsbook-churn-prediction" component={CaseStudySportsbookChurnPrediction} />
       <Route path="/case-studies/real-time-engagement" component={RealTimeEngagement} />
