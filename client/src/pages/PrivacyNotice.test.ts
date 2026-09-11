@@ -5,11 +5,11 @@ import test from "node:test";
 const readSource = (relativePath: string) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
 
-test("privacy notice v1.3 includes the reviewed supplier-evaluation wording", async () => {
+test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pilot wording", async () => {
   const page = await readSource("./PrivacyNotice.tsx");
   const requiredText = [
-    "Version 1.3",
-    "Effective date: 10 September 2026",
+    "Version 1.4 — draft",
+    "Proposed effective date: to be confirmed before publication",
     "Business-contact data obtained from third-party providers",
     "including Apollo.io (ZenLeads, Inc.)",
     "a provider-issued identifier",
@@ -20,6 +20,15 @@ test("privacy notice v1.3 includes the reviewed supplier-evaluation wording", as
     "right to object to processing based on our legitimate interests",
     "Limited supplier-evaluation test",
     "Provider-supplied person-level results are deleted immediately",
+    "one limited Apollo MCP company-first discovery pilot",
+    "We check the organisation&apos;s identity and carry out our conflict screen before requesting personal information",
+    "For no more than five selected organisations",
+    "save an accepted record in Apollo and our internal CRM",
+    "The pilot does not authorise us to contact that person",
+    "reviewed within 12 months",
+    "Removal Requests list at least every 30 days",
+    "service providers and other recipients",
+    "Apollo discovery-pilot contacts",
   ];
 
   for (const text of requiredText) {
