@@ -29,6 +29,10 @@ test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pil
     "Removal Requests list at least every 30 days",
     "service providers and other recipients",
     "Apollo discovery-pilot contacts",
+    "Cognition AI, Inc. (Devin)",
+    "AI-assisted processing during the attended Apollo discovery pilot",
+    "Exact model-provider retention and international-transfer safeguards must be confirmed",
+    "This draft will not be approved or published until the exact Cognition/model-provider retention and transfer wording has received qualified review",
   ];
 
   for (const text of requiredText) {

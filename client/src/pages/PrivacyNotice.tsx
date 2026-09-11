@@ -195,6 +195,7 @@ export default function PrivacyNotice() {
                 [<strong className="text-charcoal">Postmark (operated by ActiveCampaign)</strong>, "Email notifications for contact form submissions", "Postmark's Data Processing Addendum incorporating the UK Addendum where applicable; data hosted in the United States"],
                 [<strong className="text-charcoal">Notion (Notion Labs, Inc.)</strong>, "Business-contact records for B2B outreach (our internal CRM)", "UK Extension to the EU-US Data Privacy Framework / UK adequacy while certification applies, plus Notion's Data Processing Addendum; data hosted in the United States by default"],
                 [<strong className="text-charcoal">Apollo.io (ZenLeads, Inc.)</strong>, "Limited business-contact supplier evaluation and company-first prospect discovery, including saving up to five accepted pilot contacts in Apollo and returning Apollo's provider-issued identifier to retrieve the matching record", "An applicable UK transfer mechanism, including the UK Extension to the EU-US Data Privacy Framework while it lawfully applies, or other appropriate safeguards"],
+                [<strong className="text-charcoal">Cognition AI, Inc. (Devin)</strong>, "AI-assisted processing during the attended Apollo discovery pilot", "Cognition's applicable data-processing terms; model training is disabled. Exact model-provider retention and international-transfer safeguards must be confirmed before this draft is approved or published."],
               ]}
             />
             <p>These providers may process personal data in the United States. See “International data transfers” below for the safeguards we rely on.</p>
@@ -206,7 +207,8 @@ export default function PrivacyNotice() {
           </Section>
 
           <Section title="International data transfers">
-            <p>Personal information may be processed in the United States by some of our service providers. Where a recipient participates in a UK adequacy arrangement, including the UK Extension to the EU-US Data Privacy Framework, we rely on the applicable UK adequacy regulations. Where adequacy does not apply, we use an appropriate safeguard such as the UK International Data Transfer Agreement or the UK Addendum to the EU Standard Contractual Clauses and complete any required data protection test. You may contact us for further information about the safeguards applying to your personal information.</p>
+            <p>Personal information may be processed in the United States by some of our service providers and other recipients. Where a recipient participates in a UK adequacy arrangement, including the UK Extension to the EU-US Data Privacy Framework, we rely on the applicable UK adequacy regulations. Where adequacy does not apply, we use an appropriate safeguard such as the UK International Data Transfer Agreement or the UK Addendum to the EU Standard Contractual Clauses and complete any required data protection test. You may contact us for further information about the safeguards applying to your personal information.</p>
+            <p>During the proposed Apollo discovery pilot, limited business-contact information may pass from Apollo through the Devin AI client before accepted records are written to our CRM. Model training is disabled. This draft will not be approved or published until the exact Cognition/model-provider retention and transfer wording has received qualified review.</p>
           </Section>
 
           <Section title="How long we keep your information">
