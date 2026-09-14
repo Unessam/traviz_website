@@ -29,6 +29,8 @@ test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pil
     "Person-level Apollo results do not pass through Devin",
     "use those results only to count whether Apollo found a suitable role and verified work email, then discard them",
     "We do not create an Apollo contact, write the information to our CRM, contact the person",
+    "delete that Apollo-derived record and downstream copies within 30 days",
+    "Merely suppressing or ceasing active use does not count as deletion",
     "service providers and other recipients",
     "Apollo discovery-pilot processing",
     "Cognition AI, Inc. (Devin)",
