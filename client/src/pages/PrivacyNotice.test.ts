@@ -46,6 +46,16 @@ test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pil
 
   assert.ok(!page.includes("We do not buy contact lists from data brokers"));
   assert.ok(!page.includes("We do not purchase personal data from data brokers"));
+  for (const removedText of [
+    "saving up to five accepted pilot contacts",
+    "Up to five accepted contacts saved in Apollo and our CRM",
+    "Apollo discovery-pilot contacts",
+    "AI-assisted processing during the attended Apollo discovery pilot",
+    "limited business-contact information may pass through Cognition",
+    "Cognition acts as our processor under its data-processing terms",
+  ]) {
+    assert.ok(!page.includes(removedText), `Superseded Apollo wording returned: ${removedText}`);
+  }
 });
 
 test("privacy notice is publicly routed and linked from the footer", async () => {
