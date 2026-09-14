@@ -23,16 +23,15 @@ test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pil
     "one limited Apollo MCP company-first discovery pilot",
     "We check the organisation&apos;s identity and carry out our conflict screen before requesting personal information",
     "For no more than five selected organisations",
-    "save an accepted record in Apollo and our internal CRM",
-    "The pilot does not authorise us to contact that person",
-    "reviewed within 12 months",
-    "Removal Requests list at least every 30 days",
+    "use those person-level results only to count whether Apollo found a suitable role and verified work email, then discard them",
+    "We do not create an Apollo contact, write the information to our CRM, contact the person",
     "service providers and other recipients",
-    "Apollo discovery-pilot contacts",
+    "Apollo discovery-pilot processing",
     "Cognition AI, Inc. (Devin)",
-    "AI-assisted processing during the attended Apollo discovery pilot",
-    "Exact model-provider retention and international-transfer safeguards must be confirmed",
-    "This draft will not be approved or published until the exact Cognition/model-provider retention and transfer wording has received qualified review",
+    "Cognition acts as our processor under its data-processing terms",
+    "We have disabled use of Traviz data for model training",
+    "UK Addendum to the EU Standard Contractual Clauses or another lawful transfer mechanism",
+    "Information processed through Devin is retained in accordance with our applicable Cognition agreement and configured data controls",
   ];
 
   for (const text of requiredText) {
