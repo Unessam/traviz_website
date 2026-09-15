@@ -31,6 +31,7 @@ test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pil
     "Person-level Apollo results do not pass through Devin",
     "use those results only to count whether Apollo found a suitable role and verified work email, then discard them",
     "We do not create an Apollo contact, write the information to our CRM, contact the person",
+    "make any legal or similarly significant decision about them",
     "delete that Apollo-derived record and downstream copies as soon as reasonably practicable",
     "30 days is the contractual outer limit",
     "Merely suppressing or ceasing active use does not count as deletion",
