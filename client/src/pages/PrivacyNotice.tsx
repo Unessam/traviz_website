@@ -69,9 +69,9 @@ export default function PrivacyNotice() {
       <main className="pt-16">
         <section className="bg-charcoal py-20 text-white">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-electric-teal">Version 1.4 — draft</p>
+            <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-electric-teal">Version 1.4</p>
             <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl">Privacy Notice</h1>
-            <p className="text-lg leading-relaxed text-gray-100">Proposed effective date: to be confirmed before publication</p>
+            <p className="text-lg leading-relaxed text-gray-100">Effective date: 15 September 2026</p>
           </div>
         </section>
 

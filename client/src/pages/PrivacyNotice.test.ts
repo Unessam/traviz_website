@@ -5,11 +5,11 @@ import test from "node:test";
 const readSource = (relativePath: string) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
 
-test("privacy notice v1.4 draft preserves v1.3 and adds the Apollo discovery-pilot wording", async () => {
+test("privacy notice v1.4 publication candidate preserves v1.3 and adds the Apollo hybrid wording", async () => {
   const page = await readSource("./PrivacyNotice.tsx");
   const requiredText = [
-    "Version 1.4 — draft",
-    "Proposed effective date: to be confirmed before publication",
+    "Version 1.4",
+    "Effective date: 15 September 2026",
     "Business-contact data obtained from third-party providers",
     "including Apollo.io (ZenLeads, Inc.)",
     "a provider-issued identifier",
