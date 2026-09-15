@@ -5,11 +5,11 @@ import test from "node:test";
 const readSource = (relativePath: string) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
 
-test("privacy notice v1.3 includes the reviewed supplier-evaluation wording", async () => {
+test("privacy notice v1.4 publication candidate preserves v1.3 and adds the Apollo hybrid wording", async () => {
   const page = await readSource("./PrivacyNotice.tsx");
   const requiredText = [
-    "Version 1.3",
-    "Effective date: 10 September 2026",
+    "Version 1.4",
+    "Effective date: 15 September 2026",
     "Business-contact data obtained from third-party providers",
     "including Apollo.io (ZenLeads, Inc.)",
     "a provider-issued identifier",
@@ -20,6 +20,25 @@ test("privacy notice v1.3 includes the reviewed supplier-evaluation wording", as
     "right to object to processing based on our legitimate interests",
     "Limited supplier-evaluation test",
     "Provider-supplied person-level results are deleted immediately",
+    "one limited Apollo company-first discovery pilot",
+    "official MCP connection through Devin",
+    "Cognition&apos;s Devin service is used only for this organisation-level stage",
+    "person-level results are technically unavailable to Devin",
+    "exclude sole traders, person-identifying domains and any result containing natural-person information",
+    "We verify the organisation, remove existing CRM duplicates, carry out our conflict screen and apply fixed company-ranking rules before requesting personal information",
+    "For no more than five selected organisations",
+    "an isolated local process may obtain up to ten current professional-role candidates",
+    "Person-level Apollo results do not pass through Devin",
+    "use those results only to count whether Apollo found a suitable role and verified work email, then discard them",
+    "We do not create an Apollo contact, write the information to our CRM, contact the person",
+    "make any legal or similarly significant decision about them",
+    "delete that Apollo-derived record and downstream copies as soon as reasonably practicable",
+    "30 days is the contractual outer limit",
+    "Merely suppressing or ceasing active use does not count as deletion",
+    "service providers and other recipients",
+    "Apollo hybrid-pilot person results",
+    "deleted immediately after the in-memory comparison and anonymous aggregate counting",
+    "Only anonymous aggregate and sanitized control evidence is retained",
   ];
 
   for (const text of requiredText) {
@@ -28,6 +47,16 @@ test("privacy notice v1.3 includes the reviewed supplier-evaluation wording", as
 
   assert.ok(!page.includes("We do not buy contact lists from data brokers"));
   assert.ok(!page.includes("We do not purchase personal data from data brokers"));
+  for (const removedText of [
+    "saving up to five accepted pilot contacts",
+    "Up to five accepted contacts saved in Apollo and our CRM",
+    "Apollo discovery-pilot contacts",
+    "AI-assisted processing during the attended Apollo discovery pilot",
+    "limited business-contact information may pass through Cognition",
+    "Cognition acts as our processor under its data-processing terms",
+  ]) {
+    assert.ok(!page.includes(removedText), `Superseded Apollo wording returned: ${removedText}`);
+  }
 });
 
 test("privacy notice is publicly routed and linked from the footer", async () => {
