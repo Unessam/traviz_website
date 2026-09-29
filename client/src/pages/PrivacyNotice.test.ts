@@ -26,6 +26,13 @@ test("privacy notice v1.5 describes the Apollo outbound programme (DEC-LOG-118)"
     "Apollo participates in the UK Extension to the EU-US Data Privacy Framework",
     "Up to 12 months after our last email to you",
     "the UK data-protection regulator",
+    "Apollo is an independent controller of its own database and acts as our processor for the records we keep and the emails we send",
+    "Google acts as our processor under its data processing terms",
+    "limited companies, corporations, public limited companies and limited liability partnerships",
+    "We stop as soon as you reply",
+    "As long as needed to respect your objection",
+    "We give it information about your organisation only",
+    "We do not copy records from our Apollo outreach into it automatically",
   ];
   for (const text of requiredText) {
     assert.ok(page.includes(text), `Missing reviewed privacy text: ${text}`);
@@ -36,6 +43,12 @@ test("privacy notice v1.5 describes the Apollo outbound programme (DEC-LOG-118)"
     "Cognition&apos;s Devin service is used only",
     "No outreach is authorised by the pilot",
     "Information Commissioner&apos;s Office",
+    "hybrid-pilot",
+    "person-level",
+    "in-memory",
+    "in memory",
+    "anonymous aggregate",
+    "Business-contact records for B2B outreach (our internal CRM)",
   ]) {
     assert.ok(!page.includes(removedText), `Superseded wording returned: ${removedText}`);
   }
