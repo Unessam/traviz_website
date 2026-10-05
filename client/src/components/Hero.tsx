@@ -20,7 +20,7 @@ export default function Hero() {
                 <Button variant="outline" size="lg" className="border-2 border-electric-teal text-lg font-semibold text-electric-teal transition-all duration-300 hover:bg-electric-teal hover:text-white" asChild data-testid="button-secondary-cta"><a href="/services/ai-opportunity-data-readiness-sprint">View sprint details</a></Button>
               </div>
               <div className="mt-8">
-                <a href="https://openai.com/business/partners/" target="_blank" rel="noopener noreferrer" className="inline-block bg-white p-4" data-testid="openai-select-partner-hero"><img src={openAISelectPartnerBadge} alt="OpenAI Select Partner badge" className="h-auto w-[120px] sm:w-[140px]" /></a>
+                <a href="https://openai.com/business/partners/" target="_blank" rel="noopener noreferrer" className="inline-block bg-white p-5" data-testid="openai-select-partner-hero"><img src={openAISelectPartnerBadge} alt="OpenAI Select Partner badge" className="h-auto w-[120px] sm:w-[140px]" /></a>
               </div>
             </div>
             <div className="animate-fade-in"><img src={heroImage} alt="AI planning and operational decision-making" className="h-auto w-full rounded-2xl shadow-2xl" /></div>

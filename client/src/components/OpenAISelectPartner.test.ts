@@ -29,7 +29,25 @@ test("the hero badge follows the CTAs and stays outside the stats strip", async 
   assert.ok(hero.includes('target="_blank"'));
   assert.ok(hero.includes('rel="noopener noreferrer"'));
   assert.ok(hero.includes(`alt="${badgeAlt}"`));
+  assert.ok(hero.includes('className="inline-block bg-white p-5"'));
   assert.ok(hero.includes('className="h-auto w-[120px] sm:w-[140px]"'));
+});
+
+test("the homepage components contain exactly one partner badge in the Hero", async () => {
+  const [hero, about, footer] = await Promise.all([
+    readSource("./Hero.tsx"),
+    readSource("./About.tsx"),
+    readSource("./Footer.tsx"),
+  ]);
+  const badgeImages = [hero, about, footer].reduce(
+    (count, source) => count + source.split(`alt="${badgeAlt}"`).length - 1,
+    0,
+  );
+
+  assert.equal(badgeImages, 1);
+  assert.ok(hero.includes("OpenAI_Select_Partner_Badge.svg"));
+  assert.ok(!about.includes("OpenAI_Select_Partner_Badge.svg"));
+  assert.ok(!footer.includes("OpenAI_Select_Partner_Badge.svg"));
 });
 
 test("the About and footer copy is exact and correctly placed", async () => {
@@ -43,8 +61,6 @@ test("the About and footer copy is exact and correctly placed", async () => {
 
   assert.ok(experience < partnerBlock && partnerBlock < principles, "The partner block must follow the experience card");
   assert.ok(about.includes(aboutCopy));
-  assert.ok(about.includes(`alt="${badgeAlt}"`));
-  assert.ok(about.includes('className="h-auto w-[120px] shrink-0"'));
 
   const description = footer.indexOf("Practical AI decisions, validated use cases and implementation plans for digital businesses.");
   const credential = footer.indexOf("Traviz Ltd is an OpenAI Select Partner.");
