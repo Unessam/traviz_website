@@ -29,8 +29,8 @@ test("the hero badge follows the CTAs and stays outside the stats strip", async 
   assert.ok(hero.includes('target="_blank"'));
   assert.ok(hero.includes('rel="noopener noreferrer"'));
   assert.ok(hero.includes(`alt="${badgeAlt}"`));
-  assert.ok(hero.includes('className="inline-block bg-white p-5"'));
-  assert.ok(hero.includes('className="h-auto w-[120px] sm:w-[140px]"'));
+  assert.ok(hero.includes('className="inline-block bg-white p-[20px]"'));
+  assert.ok(hero.includes('className="h-auto w-[120px]"'));
 });
 
 test("the homepage components contain exactly one partner badge in the Hero", async () => {
