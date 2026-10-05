@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import heroImage from "@assets/Gemini_Generated_Image_lc83uqlc83uqlc83_1759267871295.png";
+import openAISelectPartnerBadge from "@assets/OpenAI_Select_Partner_Badge.svg";
 
 export default function Hero() {
   return (
@@ -17,6 +18,9 @@ export default function Hero() {
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Button size="lg" className="bg-logo-purple text-lg font-semibold text-white shadow-lg transition-all duration-300 hover:bg-opacity-90 hover:shadow-xl" onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })} data-testid="button-primary-cta">Book a 20-minute AI readiness call</Button>
                 <Button variant="outline" size="lg" className="border-2 border-electric-teal text-lg font-semibold text-electric-teal transition-all duration-300 hover:bg-electric-teal hover:text-white" asChild data-testid="button-secondary-cta"><a href="/services/ai-opportunity-data-readiness-sprint">View sprint details</a></Button>
+              </div>
+              <div className="mt-8">
+                <a href="https://openai.com/business/partners/" target="_blank" rel="noopener noreferrer" className="inline-block bg-white p-4" data-testid="openai-select-partner-hero"><img src={openAISelectPartnerBadge} alt="OpenAI Select Partner badge" className="h-auto w-[120px] sm:w-[140px]" /></a>
               </div>
             </div>
             <div className="animate-fade-in"><img src={heroImage} alt="AI planning and operational decision-making" className="h-auto w-full rounded-2xl shadow-2xl" /></div>
